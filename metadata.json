@@ -1,0 +1,6 @@
+{
+  "name": "Eco Slate",
+  "description": "A high-fidelity carbon emissions tracking platform designed with a Wabi-Sabi Ethos, prioritizing a mindful, editorial experience.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

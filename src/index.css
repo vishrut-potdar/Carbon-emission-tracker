@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --paper: #f4f3f0;
+  --charcoal: #2d2d2b;
+  --clay: #1a1a1a;
+  --earth-muted: #6b6b63;
+  --emerald-deep: #4a5d4a;
+  --emerald-light: #eff3ee;
+  --amber-muted: #b58d4a;
+  --amber-light: #faf6ee;
+  --rose-muted: #b56b6b;
+  --rose-light: #f9f2f2;
+  --paper-card: #ffffff;
+  --paper-border: #d6d4cf;
+}
+
+html.dark {
+  --paper: #141412;
+  --charcoal: #e4e3df;
+  --clay: #f4f3f0;
+  --earth-muted: #a3a29a;
+  --emerald-deep: #709470;
+  --emerald-light: #222c22;
+  --amber-muted: #dca35a;
+  --amber-light: #2c251a;
+  --rose-muted: #d48a8a;
+  --rose-light: #322121;
+  --paper-card: #20201e;
+  --paper-border: #363531;
+}
+
+@theme {
+  --font-serif: "Georgia", "Playfair Display", serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-narrative: "Georgia", "Source Serif 4", serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-paper: var(--paper);
+  --color-charcoal: var(--charcoal);
+  --color-clay: var(--clay);
+  --color-earth-muted: var(--earth-muted);
+  --color-emerald-deep: var(--emerald-deep);
+  --color-emerald-light: var(--emerald-light);
+  --color-amber-muted: var(--amber-muted);
+  --color-amber-light: var(--amber-light);
+  --color-rose-muted: var(--rose-muted);
+  --color-rose-light: var(--rose-light);
+  --color-paper-card: var(--paper-card);
+  --color-paper-border: var(--paper-border);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-charcoal);
+    font-family: var(--font-narrative);
+  }
+}
+
+/* Custom scrollbars for paper aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-paper-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-earth-muted);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(214, 212, 207, 0.3) 25%,
+    rgba(214, 212, 207, 0.75) 37%,
+    rgba(214, 212, 207, 0.3) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite ease-in-out;
+}
+
+html.dark .animate-shimmer {
+  background-image: linear-gradient(
+    110deg,
+    rgba(54, 53, 49, 0.3) 25%,
+    rgba(54, 53, 49, 0.8) 37%,
+    rgba(54, 53, 49, 0.3) 63%
+  );
+}
+
