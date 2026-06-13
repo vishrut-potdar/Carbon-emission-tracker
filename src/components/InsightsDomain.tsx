@@ -33,7 +33,9 @@ import {
   Pie,
   Cell,
   ComposedChart,
-  Line
+  Line,
+  ReferenceLine,
+  ReferenceArea
 } from 'recharts';
 
 interface InsightsDomainProps {
@@ -48,6 +50,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const forecastedPayload = payload.find((p: any) => p.dataKey === "Forecasted");
     
     const isForecast = payload[0]?.payload?.isForecast;
+    const isAnomaly = payload[0]?.payload?.isAnomaly;
+    const deviationPercent = payload[0]?.payload?.deviationPercent;
 
     return (
       <div className="bg-white border border-paper-border/80 rounded-lg p-3 shadow-md space-y-1.5 text-[10px] font-mono">
@@ -74,10 +78,77 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             Net: <span className="font-bold text-charcoal">{Math.max(0, emittedPayload.value - offsetPayload.value).toFixed(1)} kg</span>
           </p>
         )}
+        {isAnomaly && (
+          <div className="text-rose-muted font-bold text-[9px] bg-rose-light/50 border border-rose-muted/20 px-1.5 py-0.5 rounded-sm flex items-center gap-1 mt-1.5 uppercase">
+            <span>⚠️ Anomaly: {deviationPercent > 0 ? `+${deviationPercent}%` : `${deviationPercent}%`} Deviation</span>
+          </div>
+        )}
       </div>
     );
   }
   return null;
+};
+
+const AnomalyDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (!cx || !cy) return null;
+
+  const isAnomaly = payload?.isAnomaly;
+  const isForecast = payload?.isForecast;
+
+  if (isAnomaly) {
+    return (
+      <g>
+        {/* Pulsing visual halo for the anomaly element */}
+        <motion.circle
+          cx={cx}
+          cy={cy}
+          r={9}
+          fill="none"
+          stroke="var(--color-rose-muted)"
+          strokeWidth={1.5}
+          animate={{
+            scale: [1, 2.2, 1],
+            opacity: [0.75, 0, 0.75]
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 1.6,
+            ease: "easeInOut"
+          }}
+        />
+        {/* Inner core dot that breathes */}
+        <motion.circle
+          cx={cx}
+          cy={cy}
+          r={5.5}
+          fill="var(--color-rose-muted)"
+          stroke="#fff"
+          strokeWidth={1.5}
+          className="cursor-pointer"
+          animate={{
+            scale: [1, 1.2, 1]
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 1.0,
+            ease: "easeInOut"
+          }}
+        />
+      </g>
+    );
+  }
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={3.5}
+      fill={isForecast ? 'var(--color-amber-muted)' : 'var(--color-earth-muted)'}
+      stroke="#fff"
+      strokeWidth={1}
+    />
+  );
 };
 
 const AnimatedBarShape = (props: any) => {
@@ -385,22 +456,44 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
   const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
   const intercept = (sumY - slope * sumX) / n;
 
-  // Combine historical and forecasted months
+  // Anomaly Calculation based on historical norm
+  const avgHistorical = n > 0 ? sumY / n : 0;
+  const histVariance = n > 0 
+    ? yValues.reduce((acc, val) => acc + Math.pow(val - avgHistorical, 2), 0) / n 
+    : 0;
+  const histStdDev = Math.sqrt(histVariance);
+
+  // Define deviation threshold (e.g. 1.2 * standard deviation, or at least 12% of historical average)
+  const deviationThreshold = Math.max(avgHistorical * 0.12, 1.15 * histStdDev);
+  const anomalyUpperThreshold = parseFloat((avgHistorical + deviationThreshold).toFixed(1));
+  const anomalyLowerThreshold = parseFloat(Math.max(0, avgHistorical - deviationThreshold).toFixed(1));
+
+  // Combine historical and forecasted months with anomaly checks
   const combinedChartData = [
-    ...barChartData.map((d, idx) => ({
-      ...d,
-      isForecast: false,
-      Forecasted: parseFloat(Math.max(0, slope * idx + intercept).toFixed(1))
-    })),
+    ...barChartData.map((d, idx) => {
+      const forecastedVal = parseFloat(Math.max(0, slope * idx + intercept).toFixed(1));
+      const val = d.Emitted;
+      const isAnomalyVal = Math.abs(val - avgHistorical) > deviationThreshold;
+      return {
+        ...d,
+        isForecast: false,
+        Forecasted: forecastedVal,
+        isAnomaly: isAnomalyVal,
+        deviationPercent: avgHistorical > 0 ? parseFloat((((val - avgHistorical) / avgHistorical) * 100).toFixed(1)) : 0
+      };
+    }),
     ...upcoming3Months.map((m, idx) => {
       const globalIdx = 6 + idx;
       const forecastedVal = parseFloat(Math.max(0, slope * globalIdx + intercept).toFixed(1));
+      const isAnomalyVal = Math.abs(forecastedVal - avgHistorical) > deviationThreshold;
       return {
         month: m.label,
         Emitted: undefined,
         Offset: undefined,
         isForecast: true,
-        Forecasted: forecastedVal
+        Forecasted: forecastedVal,
+        isAnomaly: isAnomalyVal,
+        deviationPercent: avgHistorical > 0 ? parseFloat((((forecastedVal - avgHistorical) / avgHistorical) * 100).toFixed(1)) : 0
       };
     })
   ];
@@ -941,59 +1034,88 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
                 <p className="font-sans text-xs text-earth-muted italic">Direct carbon emissions, aggregate verified offsets, and a predictive 3-month linear forecast trend.</p>
               </div>
               
-              {/* Legend matching previous styling with forecast extension */}
-              <div className="flex gap-4 font-mono text-[10px] uppercase font-bold text-earth-muted select-none flex-wrap">
-                <motion.div 
-                  className="flex items-center gap-1.5 cursor-help"
-                  animate={{
-                    scale: activeBarIndex !== null ? 1.06 : 1.0,
-                    color: activeBarIndex !== null ? 'var(--color-rose-muted)' : 'var(--color-earth-muted)'
-                  }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  <motion.span 
-                    className="w-3 h-3 bg-rose-muted inline-block rounded-xs"
+              {/* Dynamic Anomaly Threshold Panel & Reference Legend */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 select-none flex-wrap">
+                {/* Stats indicators */}
+                <div className="flex gap-3 items-center bg-paper/50 border border-paper-border/60 rounded-lg px-2.5 py-1.5 font-mono text-[9px] uppercase font-bold text-earth-muted">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-muted" />
+                    Max Norm: {anomalyUpperThreshold.toFixed(0)} kg
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-muted" />
+                    Min Norm: {anomalyLowerThreshold.toFixed(0)} kg
+                  </span>
+                  {combinedChartData.filter(d => d.isForecast && d.isAnomaly).length > 0 ? (
+                    <motion.span 
+                      animate={{ opacity: [1, 0.5, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                      className="text-rose-muted font-bold flex items-center gap-1 bg-rose-light/50 border border-rose-muted/20 px-1.5 py-0.5 rounded cursor-help"
+                      title="Forecasted emissions significantly deviate from historical baseline norms!"
+                    >
+                      ⚠️ {combinedChartData.filter(d => d.isForecast && d.isAnomaly).length} Forecast Anomaly
+                    </motion.span>
+                  ) : (
+                    <span className="text-emerald-deep font-bold flex items-center gap-1 bg-emerald-light border border-emerald-deep/20 px-1.5 py-0.5 rounded">
+                      ✓ Trend Stable
+                    </span>
+                  )}
+                </div>
+
+                {/* Legend matching previous styling with forecast extension */}
+                <div className="flex gap-4 font-mono text-[10px] uppercase font-bold text-earth-muted flex-wrap">
+                  <motion.div 
+                    className="flex items-center gap-1.5 cursor-help"
                     animate={{
-                      scale: activeBarIndex !== null ? [1, 1.2, 1] : 1
+                      scale: activeBarIndex !== null ? 1.06 : 1.0,
+                      color: activeBarIndex !== null ? 'var(--color-rose-muted)' : 'var(--color-earth-muted)'
                     }}
-                    transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1 }}
-                  />
-                  Carbon Emitted
-                </motion.div>
-                <motion.div 
-                  className="flex items-center gap-1.5 cursor-help"
-                  animate={{
-                    scale: activeBarIndex !== null ? 1.06 : 1.0,
-                    color: activeBarIndex !== null ? 'var(--color-emerald-deep)' : 'var(--color-earth-muted)'
-                  }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  <motion.span 
-                    className="w-3 h-3 bg-emerald-deep inline-block rounded-xs"
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    <motion.span 
+                      className="w-3 h-3 bg-rose-muted inline-block rounded-xs"
+                      animate={{
+                        scale: activeBarIndex !== null ? [1, 1.2, 1] : 1
+                      }}
+                      transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1 }}
+                    />
+                    Carbon Emitted
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center gap-1.5 cursor-help"
                     animate={{
-                      scale: activeBarIndex !== null ? [1, 1.2, 1] : 1
+                      scale: activeBarIndex !== null ? 1.06 : 1.0,
+                      color: activeBarIndex !== null ? 'var(--color-emerald-deep)' : 'var(--color-earth-muted)'
                     }}
-                    transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1, delay: 0.2 }}
-                  />
-                  Carbon Offset
-                </motion.div>
-                <motion.div 
-                  className="flex items-center gap-1.5 cursor-help"
-                  animate={{
-                    scale: activeBarIndex !== null ? 1.06 : 1.0,
-                    color: activeBarIndex !== null ? 'var(--color-amber-muted)' : 'var(--color-earth-muted)'
-                  }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  <motion.span 
-                    className="w-4 h-0.5 bg-amber-muted inline-block border-t border-dashed border-amber-muted"
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    <motion.span 
+                      className="w-3 h-3 bg-emerald-deep inline-block rounded-xs"
+                      animate={{
+                        scale: activeBarIndex !== null ? [1, 1.2, 1] : 1
+                      }}
+                      transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1, delay: 0.2 }}
+                    />
+                    Carbon Offset
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center gap-1.5 cursor-help"
                     animate={{
-                      scale: activeBarIndex !== null ? [1, 1.2, 1] : 1
+                      scale: activeBarIndex !== null ? 1.06 : 1.0,
+                      color: activeBarIndex !== null ? 'var(--color-amber-muted)' : 'var(--color-earth-muted)'
                     }}
-                    transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1, delay: 0.4 }}
-                  />
-                  Forecast Trend
-                </motion.div>
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    <motion.span 
+                      className="w-4 h-0.5 bg-amber-muted inline-block border-t border-dashed border-amber-muted"
+                      animate={{
+                        scale: activeBarIndex !== null ? [1, 1.4, 1] : 1
+                      }}
+                      transition={{ repeat: activeBarIndex !== null ? Infinity : 0, repeatType: "reverse", duration: 1, delay: 0.4 }}
+                    />
+                    Forecast Trend
+                  </motion.div>
+                </div>
               </div>
             </div>
  
@@ -1028,6 +1150,39 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
                     unit=" kg"
                   />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-paper-border)', opacity: 0.15 }} />
+                  
+                  {/* Dynamic Visual Anomaly Threshold Lines */}
+                  <ReferenceLine 
+                    y={anomalyUpperThreshold} 
+                    stroke="var(--color-rose-muted)" 
+                    strokeDasharray="4 4" 
+                    strokeWidth={1}
+                    opacity={0.6}
+                    label={{ 
+                      value: 'Anomaly Max', 
+                      fill: 'var(--color-rose-muted)', 
+                      position: 'insideBottomRight', 
+                      fontSize: 8,
+                      fontWeight: 'bold',
+                      fontFamily: 'monospace'
+                    }} 
+                  />
+                  <ReferenceLine 
+                    y={anomalyLowerThreshold} 
+                    stroke="var(--color-amber-muted)" 
+                    strokeDasharray="4 4" 
+                    strokeWidth={1}
+                    opacity={0.6}
+                    label={{ 
+                      value: 'Anomaly Min', 
+                      fill: 'var(--color-amber-muted)', 
+                      position: 'insideTopRight', 
+                      fontSize: 8,
+                      fontWeight: 'bold',
+                      fontFamily: 'monospace'
+                    }} 
+                  />
+
                   <Bar dataKey="Emitted" fill="var(--color-rose-muted)" radius={[2, 2, 0, 0]} maxBarSize={45} shape={<AnimatedBarShape activeIndex={activeBarIndex} />} />
                   <Bar dataKey="Offset" fill="var(--color-emerald-deep)" radius={[2, 2, 0, 0]} maxBarSize={45} shape={<AnimatedBarShape activeIndex={activeBarIndex} />} />
                   <Line 
@@ -1036,7 +1191,7 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
                     stroke="var(--color-amber-muted)" 
                     strokeWidth={2} 
                     strokeDasharray="5 5" 
-                    dot={{ r: 3.5, fill: 'var(--color-amber-muted)', strokeWidth: 1 }}
+                    dot={<AnomalyDot />}
                     activeDot={{ r: 5 }}
                   />
                 </ComposedChart>

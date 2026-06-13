@@ -4,9 +4,10 @@ import Navigation from './components/Navigation';
 import JournalDomain from './components/JournalDomain';
 import InsightsDomain from './components/InsightsDomain';
 import StrategyDomain from './components/StrategyDomain';
+import DiagnosticsPanel from './components/DiagnosticsPanel';
 import { ActivityLog, OffsetLog, ApplianceConfig, WisdomReflection } from './types';
 import { COMMUNITY_DISCOURSE } from './data/staticData';
-import { BookOpen, Compass, ShieldAlert, Sparkles, RefreshCw, Feather, Flame, AlertCircle } from 'lucide-react';
+import { BookOpen, Compass, ShieldAlert, Sparkles, RefreshCw, Feather, Flame, AlertCircle, WifiOff, CloudLightning } from 'lucide-react';
 
 const INITIAL_ACTIVITIES: ActivityLog[] = [
   {
@@ -61,16 +62,76 @@ const INITIAL_APPLIANCES: ApplianceConfig[] = [
   }
 ];
 
+const inMemoryStore: Record<string, string> = {};
+
+const safeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return inMemoryStore[key] || null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      inMemoryStore[key] = value;
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      delete inMemoryStore[key];
+    }
+  },
+  isAvailable: (): boolean => {
+    try {
+      const test = '__eco_test__';
+      localStorage.setItem(test, test);
+      localStorage.removeItem(test);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
 export default function App() {
   // Domain switcher
   const [activeDomain, setActiveDomain] = useState<'journal' | 'insights' | 'strategy'>('journal');
 
+  // Storage & Connection diagnostics states
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
+  const [isLocalStorageAvailable, setIsLocalStorageAvailable] = useState(() => safeStorage.isAvailable());
+
+  // Hardware connection event handler
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Theme state ('light' | 'dark')
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('ecoslate_theme');
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        return savedTheme;
+      try {
+        const savedTheme = safeStorage.getItem('ecoslate_theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          return savedTheme;
+        }
+      } catch (e) {
+        // Fallback below
       }
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -85,7 +146,9 @@ export default function App() {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('ecoslate_theme', theme);
+    try {
+      safeStorage.setItem('ecoslate_theme', theme);
+    } catch {}
   }, [theme]);
 
   const toggleTheme = () => {
@@ -101,19 +164,19 @@ export default function App() {
   // Initial loading effect
   useEffect(() => {
     try {
-      const storedActivities = localStorage.getItem('ecoslate_activities');
+      const storedActivities = safeStorage.getItem('ecoslate_activities');
       setActivityLogs(storedActivities ? JSON.parse(storedActivities) : INITIAL_ACTIVITIES);
 
-      const storedOffsets = localStorage.getItem('ecoslate_offsets');
+      const storedOffsets = safeStorage.getItem('ecoslate_offsets');
       setOffsetLogs(storedOffsets ? JSON.parse(storedOffsets) : INITIAL_OFFSETS);
 
-      const storedApps = localStorage.getItem('ecoslate_appliances');
+      const storedApps = safeStorage.getItem('ecoslate_appliances');
       setAppliances(storedApps ? JSON.parse(storedApps) : INITIAL_APPLIANCES);
 
-      const storedDiscourse = localStorage.getItem('ecoslate_discourse');
+      const storedDiscourse = safeStorage.getItem('ecoslate_discourse');
       setWisdomDiscourse(storedDiscourse ? JSON.parse(storedDiscourse) : COMMUNITY_DISCOURSE);
     } catch (e) {
-      console.error('Failed to parse localStorage elements', e);
+      console.error('Failed to parse storage elements', e);
       // Fallback
       setActivityLogs(INITIAL_ACTIVITIES);
       setOffsetLogs(INITIAL_OFFSETS);
@@ -122,28 +185,36 @@ export default function App() {
     }
   }, []);
 
-  // Syncing states to localStorage
+  // Syncing states to SafeStorage (only if initialized or has content)
   useEffect(() => {
     if (activityLogs.length > 0) {
-      localStorage.setItem('ecoslate_activities', JSON.stringify(activityLogs));
+      try {
+        safeStorage.setItem('ecoslate_activities', JSON.stringify(activityLogs));
+      } catch {}
     }
   }, [activityLogs]);
 
   useEffect(() => {
     if (offsetLogs.length > 0) {
-      localStorage.setItem('ecoslate_offsets', JSON.stringify(offsetLogs));
+      try {
+        safeStorage.setItem('ecoslate_offsets', JSON.stringify(offsetLogs));
+      } catch {}
     }
   }, [offsetLogs]);
 
   useEffect(() => {
     if (appliances.length > 0) {
-      localStorage.setItem('ecoslate_appliances', JSON.stringify(appliances));
+      try {
+        safeStorage.setItem('ecoslate_appliances', JSON.stringify(appliances));
+      } catch {}
     }
   }, [appliances]);
 
   useEffect(() => {
     if (wisdomDiscourse.length > 0) {
-      localStorage.setItem('ecoslate_discourse', JSON.stringify(wisdomDiscourse));
+      try {
+        safeStorage.setItem('ecoslate_discourse', JSON.stringify(wisdomDiscourse));
+      } catch {}
     }
   }, [wisdomDiscourse]);
 
@@ -158,9 +229,9 @@ export default function App() {
       setActivityLogs([]);
       setOffsetLogs([]);
       setAppliances([]);
-      localStorage.removeItem('ecoslate_activities');
-      localStorage.removeItem('ecoslate_offsets');
-      localStorage.removeItem('ecoslate_appliances');
+      safeStorage.removeItem('ecoslate_activities');
+      safeStorage.removeItem('ecoslate_offsets');
+      safeStorage.removeItem('ecoslate_appliances');
     }
   };
 
@@ -175,7 +246,25 @@ export default function App() {
         totalOffsetKg={totalOffsetKg}
         theme={theme}
         toggleTheme={toggleTheme}
+        isOnline={isOnline}
+        isOfflineSimulated={isOfflineSimulated}
+        isLocalStorageAvailable={isLocalStorageAvailable}
+        onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
       />
+
+      {/* Offline Mode Indicator banner */}
+      {(!isOnline || isOfflineSimulated) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-amber-light border-b border-amber-muted/20 px-6 py-2.5 text-center text-xs text-[#b58d4a] font-mono flex items-center justify-center gap-2 select-none"
+        >
+          <WifiOff className="w-4 h-4 shrink-0 animate-pulse text-[#b58d4a]" />
+          <span>
+            Eco Slate is in <strong>{isOfflineSimulated ? 'Simulated Offline Autonomy' : 'Offline Mode'}</strong>. All calculations and ledger entries are persisting securely to client state storage.
+          </span>
+        </motion.div>
+      )}
 
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-6 py-8 flex-grow w-full relative">
@@ -276,6 +365,35 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* System Diagnostics Drawer Component */}
+      <DiagnosticsPanel
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        isOfflineSimulated={isOfflineSimulated}
+        setIsOfflineSimulated={setIsOfflineSimulated}
+        isOnline={isOnline}
+        isLocalStorageAvailable={isLocalStorageAvailable}
+        activityLogs={activityLogs}
+        offsetLogs={offsetLogs}
+        appliances={appliances}
+        onImportBackup={({ activityLogs: act, offsetLogs: off, appliances: app }) => {
+          setActivityLogs(act);
+          setOffsetLogs(off);
+          setAppliances(app);
+        }}
+        onClearAll={() => {
+          if (window.confirm('IRREVERSIBLE WORKSPACE WIPE: Are you sure you want to hard reset all of your local ledger registries and stored backup cache?')) {
+            setActivityLogs([]);
+            setOffsetLogs([]);
+            setAppliances([]);
+            safeStorage.removeItem('ecoslate_activities');
+            safeStorage.removeItem('ecoslate_offsets');
+            safeStorage.removeItem('ecoslate_appliances');
+            setIsDiagnosticsOpen(false);
+          }
+        }}
+      />
     </div>
   );
 }

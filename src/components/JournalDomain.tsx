@@ -128,6 +128,13 @@ const JournalDomain: React.FC<JournalDomainProps> = ({
     setSpeechError(null);
     setParsedDraft(null);
 
+    // Offline pre-emptive validation
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSpeechError("Network Connection Offline: AI transcription parsing is unavailable. Please restore your connection or enter logs manually.");
+      setAiParsing(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/gemini/parse-log", {
         method: "POST",

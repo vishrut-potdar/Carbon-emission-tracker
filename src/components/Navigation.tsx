@@ -10,6 +10,10 @@ interface NavigationProps {
   totalOffsetKg: number;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  isOnline: boolean;
+  isOfflineSimulated: boolean;
+  isLocalStorageAvailable: boolean;
+  onOpenDiagnostics: () => void;
 }
 
 const Navigation: React.FC<NavigationProps> = ({
@@ -19,7 +23,11 @@ const Navigation: React.FC<NavigationProps> = ({
   totalEmittedKg,
   totalOffsetKg,
   theme,
-  toggleTheme
+  toggleTheme,
+  isOnline,
+  isOfflineSimulated,
+  isLocalStorageAvailable,
+  onOpenDiagnostics
 }) => {
   return (
     <header className="border-b border-paper-border bg-paper/80 backdrop-blur-md sticky top-0 z-50">
@@ -124,6 +132,18 @@ const Navigation: React.FC<NavigationProps> = ({
               )}
             </button>
           </div>
+
+          {/* Diagnostics Status Pill & Trigger */}
+          <button
+            onClick={onOpenDiagnostics}
+            className="h-9 px-3 flex items-center gap-2 rounded-lg bg-paper-card border border-paper-border text-xs text-earth-muted hover:text-charcoal transition-all soft-shadow font-mono"
+            title="Open Sandbox Storage & Connection Diagnostics"
+          >
+            <span className={`w-2 h-2 rounded-full ${(!isOnline || isOfflineSimulated) ? 'bg-[#b58d4a] animate-pulse' : 'bg-emerald-deep'}`} />
+            <span className="hidden sm:inline font-bold">
+              {!isOnline || isOfflineSimulated ? 'OFFLINE' : isLocalStorageAvailable ? 'SECURE' : 'MEM_SAND'}
+            </span>
+          </button>
 
           {/* Theme Toggle Button */}
           <button
