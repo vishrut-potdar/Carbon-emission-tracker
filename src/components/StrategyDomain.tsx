@@ -104,8 +104,12 @@ const StrategyDomain = ({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Sub tabs hierarchy */}
-      <div className="flex border-b border-paper-border pb-1 gap-6">
+      <nav role="tablist" aria-label="Strategy Sub-panels" className="flex border-b border-paper-border pb-1 gap-6">
         <button
+          id="strategy-subtab-tips"
+          role="tab"
+          aria-selected={strategySubTab === 'tips'}
+          aria-controls="strategy-tips-panel"
           onClick={() => setStrategySubTab('tips')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             strategySubTab === 'tips' 
@@ -116,6 +120,10 @@ const StrategyDomain = ({
           Discipline Tips
         </button>
         <button
+          id="strategy-subtab-protocol"
+          role="tab"
+          aria-selected={strategySubTab === 'protocol'}
+          aria-controls="strategy-protocol-panel"
           onClick={() => setStrategySubTab('protocol')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             strategySubTab === 'protocol' 
@@ -126,6 +134,10 @@ const StrategyDomain = ({
           Shift Protocol
         </button>
         <button
+          id="strategy-subtab-discourse"
+          role="tab"
+          aria-selected={strategySubTab === 'discourse'}
+          aria-controls="strategy-discourse-panel"
           onClick={() => setStrategySubTab('discourse')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             strategySubTab === 'discourse' 
@@ -135,11 +147,11 @@ const StrategyDomain = ({
         >
           Community Feed
         </button>
-      </div>
+      </nav>
 
       {/* Domain 3 - Part 1: Strategy Tips */}
       {strategySubTab === 'tips' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="strategy-tips-panel" role="tabpanel" aria-labelledby="strategy-subtab-tips" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Active Sandbox Simulator details */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-paper-card border border-paper-border rounded-xl p-5 soft-shadow space-y-4">
@@ -222,12 +234,12 @@ const StrategyDomain = ({
               })}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 3 - Part 2: The Shift Protocol (Swaps) */}
       {strategySubTab === 'protocol' && (
-        <div className="space-y-8">
+        <section id="strategy-protocol-panel" role="tabpanel" aria-labelledby="strategy-subtab-protocol" className="space-y-8">
           <div className="max-w-2xl">
             <h3 className="font-serif text-2xl font-bold text-clay">The Shift Protocol (Asset Swaps)</h3>
             <p className="font-sans text-xs text-earth-muted mt-1 leading-relaxed">
@@ -410,12 +422,12 @@ const StrategyDomain = ({
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 3 - Part 3: Community Discourse (Anonymous reflection space) */}
       {strategySubTab === 'discourse' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="strategy-discourse-panel" role="tabpanel" aria-labelledby="strategy-subtab-discourse" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Submission of simple post */}
           <div className="lg:col-span-5 bg-paper-card border border-paper-border rounded-xl p-5 soft-shadow self-start">
             <h3 className="font-serif text-lg font-bold text-clay mb-2">Publish Scholarly Tip</h3>
@@ -504,7 +516,7 @@ const StrategyDomain = ({
               ))}
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

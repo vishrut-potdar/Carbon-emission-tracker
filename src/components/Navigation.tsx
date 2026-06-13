@@ -71,11 +71,14 @@ const Navigation: React.FC<NavigationProps> = ({
         </div>
 
         {/* Navigation & Theme Toggle Row */}
-        <div className="flex items-center gap-3">
+        <nav className="flex items-center gap-3" aria-label="Eco Slate Platform Controls">
           {/* Primary Domains Navigation Switches */}
-          <div className="flex bg-paper-card border border-paper-border p-1 rounded-lg soft-shadow relative">
+          <div role="tablist" aria-label="Database Domains" className="flex bg-paper-card border border-paper-border p-1 rounded-lg soft-shadow relative">
             <button
               id="nav-tab-journal"
+              role="tab"
+              aria-selected={activeDomain === 'journal'}
+              aria-controls="journal-panel"
               onClick={() => setActiveDomain('journal')}
               className={`relative flex items-center gap-2 px-4 py-2 text-xs font-mono rounded-md transition-colors duration-300 z-10 ${
                 activeDomain === 'journal'
@@ -83,7 +86,7 @@ const Navigation: React.FC<NavigationProps> = ({
                   : 'text-earth-muted hover:text-charcoal'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5" />
+              <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
               JOURNAL
               {activeDomain === 'journal' && (
                 <motion.div
@@ -96,6 +99,9 @@ const Navigation: React.FC<NavigationProps> = ({
             
             <button
               id="nav-tab-insights"
+              role="tab"
+              aria-selected={activeDomain === 'insights'}
+              aria-controls="insights-panel"
               onClick={() => setActiveDomain('insights')}
               className={`relative flex items-center gap-2 px-4 py-2 text-xs font-mono rounded-md transition-colors duration-300 z-10 ${
                 activeDomain === 'insights'
@@ -103,7 +109,7 @@ const Navigation: React.FC<NavigationProps> = ({
                   : 'text-earth-muted hover:text-charcoal'
               }`}
             >
-              <Compass className="w-3.5 h-3.5" />
+              <Compass className="w-3.5 h-3.5" aria-hidden="true" />
               INSIGHTS
               {activeDomain === 'insights' && (
                 <motion.div
@@ -116,6 +122,9 @@ const Navigation: React.FC<NavigationProps> = ({
 
             <button
               id="nav-tab-strategy"
+              role="tab"
+              aria-selected={activeDomain === 'strategy'}
+              aria-controls="strategy-panel"
               onClick={() => setActiveDomain('strategy')}
               className={`relative flex items-center gap-2 px-4 py-2 text-xs font-mono rounded-md transition-colors duration-300 z-10 ${
                 activeDomain === 'strategy'
@@ -123,7 +132,7 @@ const Navigation: React.FC<NavigationProps> = ({
                   : 'text-earth-muted hover:text-charcoal'
               }`}
             >
-              <Library className="w-3.5 h-3.5" />
+              <Library className="w-3.5 h-3.5" aria-hidden="true" />
               STRATEGY
               {activeDomain === 'strategy' && (
                 <motion.div
@@ -138,10 +147,11 @@ const Navigation: React.FC<NavigationProps> = ({
           {/* Diagnostics Status Pill & Trigger */}
           <button
             onClick={onOpenDiagnostics}
+            aria-label="Open Sandbox Storage and Connection Diagnostics panel"
             className="h-9 px-3 flex items-center gap-2 rounded-lg bg-paper-card border border-paper-border text-xs text-earth-muted hover:text-charcoal transition-all soft-shadow font-mono"
             title="Open Sandbox Storage & Connection Diagnostics"
           >
-            <span className={`w-2 h-2 rounded-full ${(!isOnline || isOfflineSimulated) ? 'bg-[#b58d4a] animate-pulse' : 'bg-emerald-deep'}`} />
+            <span className={`w-2 h-2 rounded-full ${(!isOnline || isOfflineSimulated) ? 'bg-[#b58d4a] animate-pulse' : 'bg-emerald-deep'}`} aria-hidden="true" />
             <span className="hidden sm:inline font-bold">
               {!isOnline || isOfflineSimulated ? 'OFFLINE' : isLocalStorageAvailable ? 'SECURE' : 'MEM_SAND'}
             </span>
@@ -150,16 +160,17 @@ const Navigation: React.FC<NavigationProps> = ({
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
+            aria-label={theme === 'light' ? 'Switch to Charcoal Mode' : 'Switch to Paper Mode'}
             className="w-9 h-9 flex items-center justify-center rounded-lg bg-paper-card border border-paper-border text-earth-muted hover:text-charcoal transition-all soft-shadow"
             title={theme === 'light' ? 'Switch to Charcoal Mode' : 'Switch to Paper Mode'}
           >
             {theme === 'light' ? (
-              <Moon className="w-4 h-4 text-earth-muted hover:scale-105 transition-all" />
+              <Moon className="w-4 h-4 text-earth-muted hover:scale-105 transition-all" aria-hidden="true" />
             ) : (
-              <Sun className="w-4 h-4 text-amber-muted hover:scale-105 transition-all" />
+              <Sun className="w-4 h-4 text-amber-muted hover:scale-105 transition-all" aria-hidden="true" />
             )}
           </button>
-        </div>
+        </nav>
       </div>
     </header>
   );

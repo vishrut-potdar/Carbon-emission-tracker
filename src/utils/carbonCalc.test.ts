@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   calculateCommuteCarbon,
   calculateDietCarbon,
@@ -8,7 +8,15 @@ import {
   formatUSD,
 } from './carbonCalc';
 
-describe('carbonCalc utility functions', () => {
+describe('carbonCalc utility functions with validation safeguards', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('calculateCommuteCarbon', () => {
     it('calculates the correct footprint for driving an ICE (Internal Combustion Engine) vehicle', () => {
       // 100 km * 0.18 kg CO2e/km = 18.00
@@ -38,6 +46,22 @@ describe('carbonCalc utility functions', () => {
     it('handles negative distance gracefully returning zero', () => {
       expect(calculateCommuteCarbon(-50, 'drive-ice')).toBe(0);
     });
+
+    it('intercepts NaN and returns 0 after logging TypeError', () => {
+      const result = calculateCommuteCarbon(NaN, 'drive-ice');
+      expect(result).toBe(0);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Calculation TypeError inside calculateCommuteCarbon')
+      );
+    });
+
+    it('intercepts invalid string input gracefully returning 0', () => {
+      const result = calculateCommuteCarbon('invalid' as any, 'drive-ice');
+      expect(result).toBe(0);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Calculation TypeError inside calculateCommuteCarbon')
+      );
+    });
   });
 
   describe('calculateDietCarbon', () => {
@@ -62,6 +86,17 @@ describe('carbonCalc utility functions', () => {
 
     it('handles negative days gracefully returning zero', () => {
       expect(calculateDietCarbon(-5, 'vegan')).toBe(0);
+    });
+
+    it('intercepts NaN and non-numbers gracefully returning zero', () => {
+      const resNaN = calculateDietCarbon(NaN, 'vegan');
+      expect(resNaN).toBe(0);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Calculation TypeError inside calculateDietCarbon')
+      );
+
+      const resStr = calculateDietCarbon('many' as any, 'vegan');
+      expect(resStr).toBe(0);
     });
   });
 
@@ -88,6 +123,17 @@ describe('carbonCalc utility functions', () => {
     it('handles negative quantity gracefully returning zero', () => {
       expect(calculateProcurementCarbon(-3, 'electronics')).toBe(0);
     });
+
+    it('intercepts NaN and non-numeric quantities gracefully returning zero', () => {
+      const resNaN = calculateProcurementCarbon(NaN, 'electronics');
+      expect(resNaN).toBe(0);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Calculation TypeError inside calculateProcurementCarbon')
+      );
+
+      const resStr = calculateProcurementCarbon('none' as any, 'electronics');
+      expect(resStr).toBe(0);
+    });
   });
 
   describe('calculateApplianceMonthlyFootprint', () => {
@@ -101,6 +147,21 @@ describe('carbonCalc utility functions', () => {
       // (1500 watts * 4 hours/day * 30 days * 1 count) / 1000 = 180 kWh per month
       // 180 kWh * 0.12 grid intensity = 21.60 kg CO2e
       expect(calculateApplianceMonthlyFootprint(1500, 4, 1, 0.12)).toBe(21.6);
+    });
+
+    it('handles negative input arguments gracefully by returning 0', () => {
+      expect(calculateApplianceMonthlyFootprint(-500, 2, 1, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(500, -2, 1, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(500, 2, -1, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(500, 2, 1, -0.38)).toBe(0);
+    });
+
+    it('intercepts non-numeric parameters to return zero with warning logs', () => {
+      expect(calculateApplianceMonthlyFootprint(NaN, 2, 1, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(1000, 'four' as any, 1, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(1000, 2, NaN, 0.38)).toBe(0);
+      expect(calculateApplianceMonthlyFootprint(1000, 2, 1, 'bad' as any)).toBe(0);
+      expect(console.error).toHaveBeenCalled();
     });
   });
 
@@ -118,12 +179,24 @@ describe('carbonCalc utility functions', () => {
       expect(formatCarbon(1000)).toBe('1.00t CO₂e');
       expect(formatCarbon(12345.67)).toBe('12.35t CO₂e');
     });
+
+    it('intercepts invalid values returning fallback string', () => {
+      expect(formatCarbon(NaN)).toBe('0kg CO₂e');
+      expect(formatCarbon('invalid-kg' as any)).toBe('0kg CO₂e');
+      expect(console.error).toHaveBeenCalled();
+    });
   });
 
   describe('formatUSD', () => {
     it('formats numbers into standard US dollars correctly', () => {
       const formatted = formatUSD(1234.56);
       expect(formatted).toContain('$1,234.56');
+    });
+
+    it('intercepts invalid values returning double zero USD fallback', () => {
+      expect(formatUSD(NaN)).toBe('$0.00');
+      expect(formatUSD('invalid-usd' as any)).toBe('$0.00');
+      expect(console.error).toHaveBeenCalled();
     });
   });
 });

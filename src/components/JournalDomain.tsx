@@ -30,6 +30,7 @@ import {
   Tooltip 
 } from 'recharts';
 import { EMISSION_FACTORS, APPLIANCE_PRESETS } from '../data/staticData';
+import { OPERATIONAL_CONFIG } from '../data/config';
 import { 
   calculateCommuteCarbon, 
   calculateDietCarbon, 
@@ -58,6 +59,9 @@ const JournalDomain = ({
   // Navigation inside Domain 1
   const [journalSubTab, setJournalSubTab] = useState<'timeline' | 'offsets' | 'appliances'>('timeline');
 
+  // Unified validation error state for user boundary inspection
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   // Activity input state
   const [category, setCategory] = useState<LogCategory>('commute');
   const [description, setDescription] = useState('');
@@ -81,6 +85,11 @@ const JournalDomain = ({
   const [applianceCustomName, setApplianceCustomName] = useState('');
   const [applianceHours, setApplianceHours] = useState<number>(5);
   const [applianceQuantity, setApplianceQuantity] = useState<number>(1);
+
+  // Auto-clear active validation errors upon context transitions
+  useEffect(() => {
+    setValidationError(null);
+  }, [category, journalSubTab, commuteType, dietType, procurementType, offsetProject, selectedAppPresetId]);
 
   // Perceived performance loading state
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -141,7 +150,10 @@ const JournalDomain = ({
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await response.json().catch((err: unknown) => {
+          console.warn("Failed to parse standard response error body as JSON container:", err);
+          return {};
+        });
         throw new Error(errData.error || "Could not parse logging statements.");
       }
 
@@ -236,7 +248,15 @@ const JournalDomain = ({
   };
 
   // Daily budget restriction states
-  const [dailyBudget, setDailyBudget] = useState<number>(10);
+  const [dailyBudget, setDailyBudget] = useState<number>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem('ecoslate_daily_budget') : null;
+      return stored ? Number(stored) : OPERATIONAL_CONFIG.DEFAULT_BUDGETS.DAILY_LIMIT_KG;
+    } catch (e) {
+      console.warn("Storage access denied when retrieving daily budget limit. Utilizing fallback default.", e);
+      return OPERATIONAL_CONFIG.DEFAULT_BUDGETS.DAILY_LIMIT_KG;
+    }
+  });
   const [showConfirmClear, setShowConfirmClear] = useState<boolean>(false);
   const [isGuardExpanded, setIsGuardExpanded] = useState<boolean>(false);
 
@@ -244,21 +264,45 @@ const JournalDomain = ({
   const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
     try {
       const stored = typeof window !== 'undefined' ? window.localStorage.getItem('ecoslate_monthly_budget') : null;
-      return stored ? Number(stored) : 500;
-    } catch {
-      return 500;
+      return stored ? Number(stored) : OPERATIONAL_CONFIG.DEFAULT_BUDGETS.MONTHLY_LIMIT_KG;
+    } catch (e) {
+      console.warn("Storage access denied when retrieving monthly budget limit. Utilizing fallback default.", e);
+      return OPERATIONAL_CONFIG.DEFAULT_BUDGETS.MONTHLY_LIMIT_KG;
     }
   });
   const [isMonthlyGoalExpanded, setIsMonthlyGoalExpanded] = useState<boolean>(false);
 
   const updateMonthlyBudget = (val: number) => {
-    setMonthlyBudget(val);
     try {
+      setMonthlyBudget(val);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('ecoslate_monthly_budget', String(val));
       }
-    } catch (e) {
-      // Graceful fallback for incognito mode sandbox
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.error("Local storage quota exceeded exception writing monthly budget.");
+      } else if (error instanceof Error) {
+        console.error(`Error saving monthly budget config: ${error.message}`);
+      } else {
+        console.error("Unknown error setting monthly budget.");
+      }
+    }
+  };
+
+  const updateDailyBudget = (val: number) => {
+    try {
+      setDailyBudget(val);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('ecoslate_daily_budget', String(val));
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.error("Local storage quota exceeded exception writing daily budget.");
+      } else if (error instanceof Error) {
+        console.error(`Error saving daily budget config: ${error.message}`);
+      } else {
+        console.error("Unknown error setting daily budget.");
+      }
     }
   };
 
@@ -424,138 +468,298 @@ const JournalDomain = ({
 
   // Add Log Handler
   const handleAddActivity = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    let computedAmount = 0;
-    let descSuffix = '';
+    try {
+      e.preventDefault();
+      setValidationError(null);
 
-    if (category === 'commute') {
-      computedAmount = calculateCommuteCarbon(distanceKm, commuteType);
-      const vehicleLabels: Record<string, string> = {
-        'drive-ice': 'Gasoline Sedan',
-        'drive-ev': 'Electrical Vehicle',
-        'rail': 'Passenger Rail',
-        'bus': 'Transit Bus',
-        'flight-domestic': 'Domestic Flight Corridor',
-        'flight-intl': 'International Flight Pass'
-      };
-      descSuffix = `(${distanceKm} km via ${vehicleLabels[commuteType]})`;
-    } else if (category === 'diet') {
-      computedAmount = calculateDietCarbon(dietDays, dietType);
-      const dietLabels: Record<string, string> = {
-        'vegan': 'Vegan Sourced Diet',
-        'vegetarian': 'Standard Vegetarian Diet',
-        'mediterranean': 'Mediterranean Balance',
-        'poultry-centric': 'Poultry Sustenance',
-        'beef-centric': 'Beef or Heavy Methane Proteins'
-      };
-      descSuffix = `(${dietDays} day of ${dietLabels[dietType]})`;
-    } else if (category === 'procurement') {
-      computedAmount = calculateProcurementCarbon(procurementQty, procurementType);
-      const procLabels: Record<string, string> = {
-        'garments': 'Physical Garments',
-        'electronics': 'Assembled Electronic Unit',
-        'books': 'Scholarly Printed Volume',
-        'appliances': 'Manufactured Appliance',
-        'furniture': 'Constructed Furniture Item',
-        'general': 'Sundays general utility items'
-      };
-      descSuffix = `(${procurementQty}x ${procLabels[procurementType]})`;
-    }
-
-    const finalDesc = description.trim() 
-      ? `${description.trim()} ${descSuffix}` 
-      : `${category.toUpperCase()} Entry ${descSuffix}`;
-
-    const newLog: ActivityLog = {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0],
-      category,
-      description: finalDesc,
-      carbonAmount: computedAmount,
-      details: {
-        distanceKm: category === 'commute' ? distanceKm : undefined,
-        commuteType: category === 'commute' ? commuteType : undefined,
-        dietType: category === 'diet' ? dietType : undefined,
-        procurementType: category === 'procurement' ? procurementType : undefined,
-        quantity: category === 'procurement' ? procurementQty : undefined,
+      if (!category || !['commute', 'diet', 'procurement'].includes(category)) {
+        throw new Error("Invalid impact domain category.");
       }
-    };
 
-    setActivityLogs(prev => [newLog, ...prev]);
-    setDescription('');
+      // Intercept anomalous strings or null values
+      let sanitizedDesc = description ? description.trim() : '';
+      if (sanitizedDesc.length > 300) {
+        sanitizedDesc = sanitizedDesc.slice(0, 300) + '...';
+      }
+
+      let computedAmount = 0;
+      let descSuffix = '';
+
+      if (category === 'commute') {
+        const valDistance = Number(distanceKm);
+        if (isNaN(valDistance)) {
+          throw new TypeError("Distance must be a valid numeric quantity.");
+        }
+        if (valDistance < 0) {
+          throw new RangeError("Distance cannot be negative. Please enter a positive physical length.");
+        }
+        if (valDistance > 45000) {
+          throw new RangeError("Distance exceeds physical earth planetary constraints (max 45,000 km allowed per log entry).");
+        }
+
+        // Compliant clamping fallback safeguard
+        const finalDistance = Math.max(0, Math.min(valDistance, 45000));
+
+        computedAmount = calculateCommuteCarbon(finalDistance, commuteType);
+        const vehicleLabels: Record<string, string> = {
+          'drive-ice': 'Gasoline Sedan',
+          'drive-ev': 'Electrical Vehicle',
+          'rail': 'Passenger Rail',
+          'bus': 'Transit Bus',
+          'flight-domestic': 'Domestic Flight Corridor',
+          'flight-intl': 'International Flight Pass'
+        };
+        const label = vehicleLabels[commuteType] || 'Standard Transport';
+        descSuffix = `(${finalDistance.toFixed(1)} km via ${label})`;
+      } else if (category === 'diet') {
+        const valDays = Number(dietDays);
+        if (isNaN(valDays)) {
+          throw new TypeError("Diet duration must be a valid numeric value.");
+        }
+        if (valDays < 0) {
+          throw new RangeError("Diet duration cannot be negative.");
+        }
+        if (valDays > 365) {
+          throw new RangeError("Diet duration exceeds standard calendar constraints (max 365 days allowed).");
+        }
+
+        // Compliant discrete rounding and clamping fallback safeguard
+        const finalDays = Math.max(0, Math.min(Math.round(valDays), 365));
+
+        computedAmount = calculateDietCarbon(finalDays, dietType);
+        const dietLabels: Record<string, string> = {
+          'vegan': 'Vegan Sourced Diet',
+          'vegetarian': 'Standard Vegetarian Diet',
+          'mediterranean': 'Mediterranean Balance',
+          'poultry-centric': 'Poultry Sustenance',
+          'beef-centric': 'Beef or Heavy Methane Proteins'
+        };
+        const label = dietLabels[dietType] || 'Standard Diet';
+        descSuffix = `(${finalDays} day${finalDays === 1 ? '' : 's'} of ${label})`;
+      } else if (category === 'procurement') {
+        const valQty = Number(procurementQty);
+        if (isNaN(valQty)) {
+          throw new TypeError("Procurement quantity must be a valid numeric value.");
+        }
+        if (valQty <= 0) {
+          throw new RangeError("Procurement quantity must be at least 1 unit.");
+        }
+        if (valQty > 50000) {
+          throw new RangeError("Procurement quantity exceeds industrial acquisition constraints (max 50,000 units allowed).");
+        }
+
+        // Compliant discrete integer count and clamping fallback safeguard
+        const finalQty = Math.max(1, Math.min(Math.round(valQty), 50000));
+
+        computedAmount = calculateProcurementCarbon(finalQty, procurementType);
+        const procLabels: Record<string, string> = {
+          'garments': 'Physical Garments',
+          'electronics': 'Assembled Electronic Unit',
+          'books': 'Scholarly Printed Volume',
+          'appliances': 'Manufactured Appliance',
+          'furniture': 'Constructed Furniture Item',
+          'general': 'Sundays general utility items'
+        };
+        const label = procLabels[procurementType] || 'Commodity Items';
+        descSuffix = `(${finalQty}x ${label})`;
+      }
+
+      const finalDesc = sanitizedDesc 
+        ? `${sanitizedDesc} ${descSuffix}` 
+        : `${category.toUpperCase()} Entry ${descSuffix}`;
+
+      const newLog: ActivityLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: new Date().toISOString(),
+        date: new Date().toISOString().split('T')[0],
+        category,
+        description: finalDesc,
+        carbonAmount: computedAmount,
+        details: {
+          distanceKm: category === 'commute' ? distanceKm : undefined,
+          commuteType: category === 'commute' ? commuteType : undefined,
+          dietType: category === 'diet' ? dietType : undefined,
+          procurementType: category === 'procurement' ? procurementType : undefined,
+          quantity: category === 'procurement' ? procurementQty : undefined,
+        }
+      };
+
+      setActivityLogs(prev => [newLog, ...prev]);
+      setDescription('');
+    } catch (err) {
+      if (err instanceof TypeError || err instanceof RangeError || err instanceof Error) {
+        setValidationError(err.message);
+        console.error("Validation logic intercepted standard activity logging failure class:", err.message);
+      } else {
+        setValidationError("An unexpected error occurred during input verification.");
+        console.error("An unexpected non-Error exception was thrown in handleAddActivity:", err);
+      }
+    }
   };
 
   // Add Offset Handler
   const handleAddOffset = (e: React.FormEvent) => {
-    e.preventDefault();
+    try {
+      e.preventDefault();
+      setValidationError(null);
 
-    const priceRates = {
-      'reforestation': 0.12,    // $0.12 per kg carbon offset ($120/ton)
-      'renewable-solar': 0.08,  // $0.08 per kg carbon offset
-      'cooking-stoves': 0.05,   // $0.05 per kg carbon offset
-      'methane-capture': 0.15   // $0.15 per kg carbon offset
-    };
+      const valAmount = Number(offsetAmountKg);
+      if (isNaN(valAmount)) {
+        throw new TypeError("Offset amount must be a valid numeric coefficient.");
+      }
+      if (valAmount <= 0) {
+        throw new RangeError("Offset physical mass must be greater than zero kg.");
+      }
+      if (valAmount > 1000000) {
+        throw new RangeError("Individual offset cannot exceed industrial parameters (1,000 metric tons limit).");
+      }
 
-    const projectNames = {
-      'reforestation': 'Cascadian Mountain Reforestation Initiative',
-      'renewable-solar': 'Sahara Solar Grid Addition Sector V',
-      'cooking-stoves': 'Clean Mechanical Cookstoves for Coastal Villages',
-      'methane-capture': 'Landfill Methane Bio-Capture Alliance'
-    };
+      if (!['reforestation', 'renewable-solar', 'cooking-stoves', 'methane-capture'].includes(offsetProject)) {
+        throw new Error("Invalid offset project venture selection.");
+      }
 
-    const cost = Number((offsetAmountKg * priceRates[offsetProject]).toFixed(2));
+      const finalAmount = Math.max(0, Math.min(valAmount, 1000000));
 
-    const newOffset: OffsetLog = {
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date().toISOString(),
-      projectType: offsetProject,
-      projectName: projectNames[offsetProject],
-      offsetAmount: offsetAmountKg,
-      costUSD: cost
-    };
+      const price = OPERATIONAL_CONFIG.OFFSET_PROJECT_PRICES[offsetProject];
+      const name = OPERATIONAL_CONFIG.OFFSET_PROJECT_NAMES[offsetProject];
+      const cost = Number((finalAmount * price).toFixed(2));
 
-    setOffsetLogs(prev => [newOffset, ...prev]);
+      const newOffset: OffsetLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: new Date().toISOString(),
+        projectType: offsetProject,
+        projectName: name,
+        offsetAmount: finalAmount,
+        costUSD: cost
+      };
+
+      setOffsetLogs(prev => [newOffset, ...prev]);
+    } catch (err) {
+      if (err instanceof TypeError || err instanceof RangeError || err instanceof Error) {
+        setValidationError(err.message);
+        console.error("Standard error encountered adding verified offset log:", err.message);
+      } else {
+        setValidationError("Unknown anomaly intercepted during offset registration.");
+        console.error("An unexpected error occurred in handleAddOffset:", err);
+      }
+    }
   };
 
   // Delete Handlers
   const deleteActivity = (id: string) => {
-    setActivityLogs(prev => prev.filter(item => item.id !== id));
+    try {
+      if (typeof id !== 'string') {
+        throw new TypeError('id must be a string');
+      }
+      setActivityLogs(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      if (err instanceof TypeError) {
+        console.error("TypeError in deleteActivity:", err.message);
+      } else if (err instanceof Error) {
+        console.error("Error in deleteActivity:", err.message);
+      } else {
+        console.error("Unknown error in deleteActivity:", err);
+      }
+    }
   };
 
   const deleteOffset = (id: string) => {
-    setOffsetLogs(prev => prev.filter(item => item.id !== id));
+    try {
+      if (typeof id !== 'string') {
+        throw new TypeError('id must be a string');
+      }
+      setOffsetLogs(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      if (err instanceof TypeError) {
+        console.error("TypeError in deleteOffset:", err.message);
+      } else if (err instanceof Error) {
+        console.error("Error in deleteOffset:", err.message);
+      } else {
+        console.error("Unknown error in deleteOffset:", err);
+      }
+    }
   };
 
   // Appliance Management
   const handleAddAppliance = (e: React.FormEvent) => {
-    e.preventDefault();
-    const preset = APPLIANCE_PRESETS.find(p => p.id === selectedAppPresetId) || APPLIANCE_PRESETS[0];
-    const customWatts = preset.watts;
-    const computedMonthly = calculateApplianceMonthlyFootprint(
-      customWatts,
-      applianceHours,
-      applianceQuantity,
-      preset.typicalMultiplier
-    );
+    try {
+      e.preventDefault();
+      setValidationError(null);
 
-    const newApp: ApplianceConfig = {
-      id: Math.random().toString(36).substr(2, 9),
-      applianceTypeId: preset.id,
-      customName: applianceCustomName.trim() || preset.name,
-      watts: customWatts,
-      dailyHours: applianceHours,
-      count: applianceQuantity,
-      monthlyFootprint: computedMonthly
-    };
+      const valHours = Number(applianceHours);
+      if (isNaN(valHours)) {
+        throw new TypeError("Appliance daily usage duration must be a valid number.");
+      }
+      if (valHours < 0 || valHours > 24) {
+        throw new RangeError("Daily direct usage must reside between 0 and 24 hours per day.");
+      }
 
-    setAppliances(prev => [...prev, newApp]);
-    setApplianceCustomName('');
+      const valQuantity = Number(applianceQuantity);
+      if (isNaN(valQuantity)) {
+        throw new TypeError("Registered appliance counts must be valid numeric quantities.");
+      }
+      if (valQuantity <= 0) {
+        throw new RangeError("Quantity count must equal at least 1 unit.");
+      }
+      if (valQuantity > 500) {
+        throw new RangeError("Excessive static quantities logged. Maximum allowed count is 500 units.");
+      }
+
+      const finalHours = Math.max(0, Math.min(valHours, 24));
+      const finalQuantity = Math.max(1, Math.min(Math.round(valQuantity), 500));
+
+      const preset = APPLIANCE_PRESETS.find(p => p.id === selectedAppPresetId) || APPLIANCE_PRESETS[0];
+      const customWatts = preset.watts;
+      const computedMonthly = calculateApplianceMonthlyFootprint(
+        customWatts,
+        finalHours,
+        finalQuantity,
+        preset.typicalMultiplier
+      );
+
+      let sanitizedName = applianceCustomName ? applianceCustomName.trim() : '';
+      if (sanitizedName.length > 100) {
+        sanitizedName = sanitizedName.slice(0, 100) + '...';
+      }
+
+      const newApp: ApplianceConfig = {
+        id: Math.random().toString(36).substr(2, 9),
+        applianceTypeId: preset.id,
+        customName: sanitizedName || preset.name,
+        watts: customWatts,
+        dailyHours: finalHours,
+        count: finalQuantity,
+        monthlyFootprint: computedMonthly
+      };
+
+      setAppliances(prev => [...prev, newApp]);
+      setApplianceCustomName('');
+    } catch (err) {
+      if (err instanceof TypeError || err instanceof RangeError || err instanceof Error) {
+        setValidationError(err.message);
+        console.error("Error encountered inside handleAddAppliance:", err.message);
+      } else {
+        setValidationError("Unknown mechanical asset config anomaly.");
+        console.error("An unexpected error occurred in handleAddAppliance:", err);
+      }
+    }
   };
 
   const deleteAppliance = (id: string) => {
-    setAppliances(prev => prev.filter(app => app.id !== id));
+    try {
+      if (typeof id !== 'string') {
+        throw new TypeError('id must be a string_key');
+      }
+      setAppliances(prev => prev.filter(app => app.id !== id));
+    } catch (err) {
+      if (err instanceof TypeError) {
+        console.error("TypeError in deleteAppliance:", err.message);
+      } else if (err instanceof Error) {
+        console.error("Error in deleteAppliance:", err.message);
+      } else {
+        console.error("Unknown error in deleteAppliance:", err);
+      }
+    }
   };
 
   const totalApplianceMonthlyKg = appliances.reduce((sum, app) => sum + app.monthlyFootprint, 0);
@@ -635,8 +839,12 @@ const JournalDomain = ({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Sub tabs hierarchy */}
-      <div className="flex border-b border-paper-border pb-1 gap-6">
+      <nav role="tablist" aria-label="Journal Sub-panels" className="flex border-b border-paper-border pb-1 gap-6">
         <button
+          id="journal-subtab-timeline"
+          role="tab"
+          aria-selected={journalSubTab === 'timeline'}
+          aria-controls="journal-timeline-panel"
           onClick={() => setJournalSubTab('timeline')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             journalSubTab === 'timeline' 
@@ -647,6 +855,10 @@ const JournalDomain = ({
           Activity Slate
         </button>
         <button
+          id="journal-subtab-offsets"
+          role="tab"
+          aria-selected={journalSubTab === 'offsets'}
+          aria-controls="journal-offsets-panel"
           onClick={() => setJournalSubTab('offsets')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             journalSubTab === 'offsets' 
@@ -657,6 +869,10 @@ const JournalDomain = ({
           Offsets Slate
         </button>
         <button
+          id="journal-subtab-appliances"
+          role="tab"
+          aria-selected={journalSubTab === 'appliances'}
+          aria-controls="journal-appliances-panel"
           onClick={() => setJournalSubTab('appliances')}
           className={`font-serif text-[15px] pb-1.5 transition-all relative ${
             journalSubTab === 'appliances' 
@@ -666,11 +882,11 @@ const JournalDomain = ({
         >
           Appliances Slate
         </button>
-      </div>
+      </nav>
 
       {/* Domain 1 - Part 1: Timeline Logger */}
       {journalSubTab === 'timeline' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="journal-timeline-panel" role="tabpanel" aria-labelledby="journal-subtab-timeline" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Timeline Submission Side-Engine & Distribution Chart */}
           <div className="lg:col-span-5 space-y-6 self-start">
             <div className="bg-paper-card border border-paper-border rounded-xl p-6 soft-shadow">
@@ -940,6 +1156,13 @@ const JournalDomain = ({
                   </div>
                 )}
               </div>
+
+              {/* Validation Alert */}
+              {journalSubTab === 'timeline' && validationError && (
+                <div className="p-3 bg-rose-muted/10 border border-rose-muted/20 text-rose-muted rounded-lg text-[11px] font-mono leading-relaxed" id="activity-validation-alert">
+                  <span className="font-bold">⚠️ VALIDATION INTERCEPT:</span> {validationError}
+                </div>
+              )}
 
               {/* Estimate Preview */}
               <div className="p-3 bg-emerald-light rounded-lg border border-emerald-deep/10 flex justify-between items-center">
@@ -1331,7 +1554,7 @@ const JournalDomain = ({
                   <span className="text-earth-muted flex items-center gap-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${
                       netCurrentMonthEmissions > monthlyBudget ? 'bg-rose-muted animate-ping' :
-                      netCurrentMonthEmissions > monthlyBudget * 0.8 ? 'bg-amber-muted animate-pulse' :
+                      netCurrentMonthEmissions > monthlyBudget * OPERATIONAL_CONFIG.ALERT_THRESHOLDS.MONTHLY_ALERT_WARNING ? 'bg-amber-muted animate-pulse' :
                       'bg-emerald-deep'
                     }`} />
                     Net Month Footprint Progress
@@ -1344,7 +1567,7 @@ const JournalDomain = ({
                   <div 
                     className={`h-full rounded-full transition-all duration-500 ease-out ${
                       netCurrentMonthEmissions > monthlyBudget ? 'bg-rose-muted' :
-                      netCurrentMonthEmissions > monthlyBudget * 0.8 ? 'bg-amber-muted' :
+                      netCurrentMonthEmissions > monthlyBudget * OPERATIONAL_CONFIG.ALERT_THRESHOLDS.MONTHLY_ALERT_WARNING ? 'bg-amber-muted' :
                       'bg-emerald-deep'
                     }`}
                     style={{ width: `${Math.min((netCurrentMonthEmissions / monthlyBudget) * 100, 100)}%` }}
@@ -1356,7 +1579,7 @@ const JournalDomain = ({
                   <p className="font-sans text-[10px] text-rose-muted italic leading-relaxed pt-0.5">
                     ⚠️ Month target exceeded! Log restorative actions in offsets to restore equilibrium.
                   </p>
-                ) : netCurrentMonthEmissions > monthlyBudget * 0.8 ? (
+                ) : netCurrentMonthEmissions > monthlyBudget * OPERATIONAL_CONFIG.ALERT_THRESHOLDS.MONTHLY_ALERT_WARNING ? (
                   <p className="font-sans text-[10px] text-amber-muted italic leading-relaxed pt-0.5">
                     💡 Approaching target ceiling. Consider whole-food diet selections or commuter rail lines to maintain a safe buffer.
                   </p>
@@ -1407,7 +1630,7 @@ const JournalDomain = ({
                         max="40"
                         step="1"
                         value={dailyBudget}
-                        onChange={(e) => setDailyBudget(Number(e.target.value))}
+                        onChange={(e) => updateDailyBudget(Number(e.target.value))}
                         className="w-24 accent-emerald-deep cursor-pointer"
                         title="Drag to custom daily limit"
                       />
@@ -1442,7 +1665,7 @@ const JournalDomain = ({
                   <span className="text-earth-muted flex items-center gap-1">
                     <span className={`w-1.2 h-1.2 rounded-full ${
                       todayTotal > dailyBudget ? 'bg-rose-muted animate-ping' :
-                      todayTotal > dailyBudget * 0.70 ? 'bg-amber-muted' :
+                      todayTotal > dailyBudget * OPERATIONAL_CONFIG.ALERT_THRESHOLDS.DAILY_CAUTION ? 'bg-amber-muted' :
                       'bg-emerald-deep'
                     }`} />
                     Today's Ledger
@@ -1455,7 +1678,7 @@ const JournalDomain = ({
                   <div 
                     className={`h-full rounded-full transition-all duration-500 ease-out ${
                       todayTotal > dailyBudget ? 'bg-rose-muted' :
-                      todayTotal > dailyBudget * 0.70 ? 'bg-amber-muted' :
+                      todayTotal > dailyBudget * OPERATIONAL_CONFIG.ALERT_THRESHOLDS.DAILY_CAUTION ? 'bg-amber-muted' :
                       'bg-emerald-deep'
                     }`}
                     style={{ width: `${Math.min((todayTotal / dailyBudget) * 100, 100)}%` }}
@@ -1534,12 +1757,12 @@ const JournalDomain = ({
               </p>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 1 - Part 2: Data Journal with Offsets */}
       {journalSubTab === 'offsets' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="journal-offsets-panel" role="tabpanel" aria-labelledby="journal-subtab-offsets" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Submission and project info */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-paper-card border border-paper-border rounded-xl p-6 soft-shadow">
@@ -1577,15 +1800,19 @@ const JournalDomain = ({
                   />
                 </div>
 
+                {/* Validation Alert */}
+                {journalSubTab === 'offsets' && validationError && (
+                  <div className="p-3 bg-rose-muted/10 border border-rose-muted/20 text-rose-muted rounded-lg text-[11px] font-mono leading-relaxed" id="offset-validation-alert">
+                    <span className="font-bold">⚠️ VALIDATION INTERCEPT:</span> {validationError}
+                  </div>
+                )}
+
                 {/* Simulated Cost Breakdown */}
                 <div className="p-3 bg-paper border border-paper-border rounded-lg space-y-2">
                   <div className="flex justify-between font-mono text-xs">
                     <span className="text-earth-muted">Projected Cost Equivalency</span>
                     <span className="font-bold text-charcoal">
-                      {offsetProject === 'reforestation' && formatUSD(offsetAmountKg * 0.12)}
-                      {offsetProject === 'renewable-solar' && formatUSD(offsetAmountKg * 0.08)}
-                      {offsetProject === 'cooking-stoves' && formatUSD(offsetAmountKg * 0.05)}
-                      {offsetProject === 'methane-capture' && formatUSD(offsetAmountKg * 0.15)}
+                      {formatUSD(offsetAmountKg * OPERATIONAL_CONFIG.OFFSET_PROJECT_PRICES[offsetProject])}
                     </span>
                   </div>
                   <div className="text-[10px] font-sans text-earth-muted leading-relaxed italic">
@@ -1678,12 +1905,12 @@ const JournalDomain = ({
               )}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 1 - Part 3: Appliance Ledger */}
       {journalSubTab === 'appliances' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="journal-appliances-panel" role="tabpanel" aria-labelledby="journal-subtab-appliances" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Submission and pre-calculations */}
           <div className="lg:col-span-5 bg-paper-card border border-paper-border rounded-xl p-6 soft-shadow self-start">
             <h3 className="font-serif text-lg font-bold text-charcoal mb-1">Anchor Household Machinery</h3>
@@ -1742,6 +1969,13 @@ const JournalDomain = ({
                   />
                 </div>
               </div>
+
+              {/* Validation Alert */}
+              {journalSubTab === 'appliances' && validationError && (
+                <div className="p-3 bg-rose-muted/10 border border-rose-muted/20 text-rose-muted rounded-lg text-[11px] font-mono leading-relaxed" id="appliance-validation-alert">
+                  <span className="font-bold">⚠️ VALIDATION INTERCEPT:</span> {validationError}
+                </div>
+              )}
 
               {/* Monthly Footprint Live Preview */}
               {(() => {
@@ -1824,7 +2058,7 @@ const JournalDomain = ({
               </div>
             )}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

@@ -573,8 +573,12 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
     <div className="space-y-8 animate-fade-in">
       {/* Sub tabs hierarchy */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-paper-border pb-1 gap-4">
-        <div className="flex gap-6">
+        <nav role="tablist" aria-label="Insights Subtopics" className="flex gap-6">
           <button
+            id="insights-subtab-industry"
+            role="tab"
+            aria-selected={insightsSubTab === 'industry'}
+            aria-controls="insights-industry-panel"
             onClick={() => setInsightsSubTab('industry')}
             className={`font-serif text-[15px] pb-1.5 transition-all relative ${
               insightsSubTab === 'industry' 
@@ -585,6 +589,10 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
             Global Impact
           </button>
           <button
+            id="insights-subtab-map"
+            role="tab"
+            aria-selected={insightsSubTab === 'map'}
+            aria-controls="insights-map-panel"
             onClick={() => setInsightsSubTab('map')}
             className={`font-serif text-[15px] pb-1.5 transition-all relative ${
               insightsSubTab === 'map' 
@@ -595,6 +603,10 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
             Regional Grids
           </button>
           <button
+            id="insights-subtab-trend"
+            role="tab"
+            aria-selected={insightsSubTab === 'trend'}
+            aria-controls="insights-trend-panel"
             onClick={() => setInsightsSubTab('trend')}
             className={`font-serif text-[15px] pb-1.5 transition-all relative ${
               insightsSubTab === 'trend' 
@@ -604,11 +616,13 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
           >
             Emissions Trend
           </button>
-        </div>
+        </nav>
 
         {/* Toggle Weekly Summary */}
         <button
           type="button"
+          aria-expanded={showWeeklySummary}
+          aria-controls="weekly-summary-block"
           onClick={() => setShowWeeklySummary(!showWeeklySummary)}
           className={`font-mono text-[10px] uppercase tracking-wider font-bold py-1 px-3 rounded transition-all flex items-center gap-1.5 border ${
             showWeeklySummary 
@@ -616,7 +630,7 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
               : 'bg-paper text-earth-muted border-paper-border hover:text-charcoal hover:border-earth-muted'
           }`}
         >
-          <Calendar className="w-3 h-3" />
+          <Calendar className="w-3 h-3" aria-hidden="true" />
           {showWeeklySummary ? 'Hide Weekly Summary' : 'Weekly Summary'}
         </button>
       </div>
@@ -721,7 +735,7 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
 
       {/* Domain 2 - Part 1: Industry Insights */}
       {insightsSubTab === 'industry' && (
-        <div className="space-y-8 animate-fade-in">
+        <section id="insights-industry-panel" role="tabpanel" aria-labelledby="insights-subtab-industry" className="space-y-8 animate-fade-in">
           {/* Top Row: Personal Impact Category Breakdown Doughnut Chart */}
           <div className="bg-paper-card border border-paper-border rounded-xl p-6 soft-shadow" id="personal-trace-doughnut-card">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-paper-border pb-4 mb-6">
@@ -917,12 +931,12 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
               </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 2 - Part 2: Global Footprint Map */}
       {insightsSubTab === 'map' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <section id="insights-map-panel" role="tabpanel" aria-labelledby="insights-subtab-map" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Spatial Grid of Regions */}
           <div className="lg:col-span-6 space-y-4">
             <h3 className="font-serif text-xl font-bold text-clay">Spatial Grid of Intensity</h3>
@@ -1008,12 +1022,15 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
               <span className="font-mono text-[10px] text-earth-muted">Citation indices derived from EPA EGRID 2022 & ENTSO-E power reports.</span>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Domain 2 - Part 3: Annual Rolling Trend */}
       {insightsSubTab === 'trend' && (
         <motion.div 
+          id="insights-trend-panel"
+          role="tabpanel"
+          aria-labelledby="insights-subtab-trend"
           className="space-y-8"
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}

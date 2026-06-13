@@ -1,4 +1,5 @@
 import { EMISSION_FACTORS } from '../data/staticData';
+import { OPERATIONAL_CONFIG } from '../data/config';
 
 /**
  * Calculates CO2 emissions for a given transport mode and distance.
@@ -7,9 +8,23 @@ import { EMISSION_FACTORS } from '../data/staticData';
  * @returns Total calculated footprint in kg CO2e, rounded to 2 decimal places.
  */
 export function calculateCommuteCarbon(distanceKm: number, commuteType: keyof typeof EMISSION_FACTORS.commute): number {
-  if (distanceKm < 0) return 0;
-  const factor = EMISSION_FACTORS.commute[commuteType] || 0.18;
-  return Number((distanceKm * factor).toFixed(2));
+  try {
+    if (typeof distanceKm !== 'number' || isNaN(distanceKm)) {
+      throw new TypeError('distanceKm must be a valid number');
+    }
+    if (distanceKm < 0) return 0;
+    const factor = EMISSION_FACTORS.commute[commuteType] || OPERATIONAL_CONFIG.DEFAULT_CARBON_FACTORS.COMMUTE;
+    return Number((distanceKm * factor).toFixed(2));
+  } catch (error) {
+    if (error instanceof TypeError) {
+      console.error(`Calculation TypeError inside calculateCommuteCarbon: ${error.message}`);
+    } else if (error instanceof Error) {
+      console.error(`Standard error inside calculateCommuteCarbon: ${error.message}`);
+    } else {
+      console.error(`Unexpected calculation error in calculateCommuteCarbon:`, error);
+    }
+    return 0;
+  }
 }
 
 /**
@@ -19,9 +34,23 @@ export function calculateCommuteCarbon(distanceKm: number, commuteType: keyof ty
  * @returns Total calculation in kg CO2e, rounded to 2 decimal places.
  */
 export function calculateDietCarbon(days: number, dietType: keyof typeof EMISSION_FACTORS.diet): number {
-  if (days < 0) return 0;
-  const factor = EMISSION_FACTORS.diet[dietType] || 1.3;
-  return Number((days * factor).toFixed(2));
+  try {
+    if (typeof days !== 'number' || isNaN(days)) {
+      throw new TypeError('days must be a valid number');
+    }
+    if (days < 0) return 0;
+    const factor = EMISSION_FACTORS.diet[dietType] || OPERATIONAL_CONFIG.DEFAULT_CARBON_FACTORS.DIET;
+    return Number((days * factor).toFixed(2));
+  } catch (error) {
+    if (error instanceof TypeError) {
+      console.error(`Calculation TypeError inside calculateDietCarbon: ${error.message}`);
+    } else if (error instanceof Error) {
+      console.error(`Standard error inside calculateDietCarbon: ${error.message}`);
+    } else {
+      console.error(`Unexpected calculation error in calculateDietCarbon:`, error);
+    }
+    return 0;
+  }
 }
 
 /**
@@ -31,9 +60,23 @@ export function calculateDietCarbon(days: number, dietType: keyof typeof EMISSIO
  * @returns Aggregate embodied carbon in kg CO2e, rounded to 2 decimal places.
  */
 export function calculateProcurementCarbon(quantity: number, procurementType: keyof typeof EMISSION_FACTORS.procurement): number {
-  if (quantity < 0) return 0;
-  const factor = EMISSION_FACTORS.procurement[procurementType] || 4.5;
-  return Number((quantity * factor).toFixed(2));
+  try {
+    if (typeof quantity !== 'number' || isNaN(quantity)) {
+      throw new TypeError('quantity must be a valid number');
+    }
+    if (quantity < 0) return 0;
+    const factor = EMISSION_FACTORS.procurement[procurementType] || OPERATIONAL_CONFIG.DEFAULT_CARBON_FACTORS.PROCUREMENT;
+    return Number((quantity * factor).toFixed(2));
+  } catch (error) {
+    if (error instanceof TypeError) {
+      console.error(`Calculation TypeError inside calculateProcurementCarbon: ${error.message}`);
+    } else if (error instanceof Error) {
+      console.error(`Standard error inside calculateProcurementCarbon: ${error.message}`);
+    } else {
+      console.error(`Unexpected calculation error in calculateProcurementCarbon:`, error);
+    }
+    return 0;
+  }
 }
 
 /**
@@ -45,11 +88,34 @@ export function calculateProcurementCarbon(quantity: number, procurementType: ke
  * @returns Monthly calculated footprint in kg CO2e, rounded to 2 decimal places.
  */
 export function calculateApplianceMonthlyFootprint(watts: number, dailyHours: number, count: number, multiplier: number): number {
-  if (watts < 0 || dailyHours < 0 || count < 0 || multiplier < 0) return 0;
-  // kWh per month = (watts * hours/day * 30 days * count) / 1000
-  // kg CO2e = kWh per month * grid carbon factor
-  const monthlyKwh = (watts * dailyHours * 30 * count) / 1000;
-  return Number((monthlyKwh * multiplier).toFixed(2));
+  try {
+    if (typeof watts !== 'number' || isNaN(watts)) {
+      throw new TypeError('watts must be a valid number');
+    }
+    if (typeof dailyHours !== 'number' || isNaN(dailyHours)) {
+      throw new TypeError('dailyHours must be a valid number');
+    }
+    if (typeof count !== 'number' || isNaN(count)) {
+      throw new TypeError('count must be a valid number');
+    }
+    if (typeof multiplier !== 'number' || isNaN(multiplier)) {
+      throw new TypeError('multiplier grid intensity must be a valid number');
+    }
+    if (watts < 0 || dailyHours < 0 || count < 0 || multiplier < 0) return 0;
+    // kWh per month = (watts * hours/day * days in month * count) / divisor
+    // kg CO2e = kWh per month * grid carbon factor
+    const monthlyKwh = (watts * dailyHours * OPERATIONAL_CONFIG.MULTIPLIERS.DAYS_IN_MONTH * count) / OPERATIONAL_CONFIG.MULTIPLIERS.WATT_TO_KILOWATT_DIVISOR;
+    return Number((monthlyKwh * multiplier).toFixed(2));
+  } catch (error) {
+    if (error instanceof TypeError) {
+      console.error(`Calculation TypeError inside calculateApplianceMonthlyFootprint: ${error.message}`);
+    } else if (error instanceof Error) {
+      console.error(`Standard error inside calculateApplianceMonthlyFootprint: ${error.message}`);
+    } else {
+      console.error(`Unexpected calculation error in calculateApplianceMonthlyFootprint:`, error);
+    }
+    return 0;
+  }
 }
 
 /**
@@ -58,11 +124,23 @@ export function calculateApplianceMonthlyFootprint(watts: number, dailyHours: nu
  * @returns Human-readable string representation (e.g., "350kg CO₂e" or "1.24t CO₂e").
  */
 export function formatCarbon(kg: number): string {
-  if (kg < 0) return '0kg CO₂e';
-  if (kg >= 1000) {
-    return `${(kg / 1000).toFixed(2)}t CO₂e`;
+  try {
+    if (typeof kg !== 'number' || isNaN(kg)) {
+      throw new TypeError('mass in kg must be a valid number');
+    }
+    if (kg < 0) return '0kg CO₂e';
+    if (kg >= OPERATIONAL_CONFIG.MULTIPLIERS.METRIC_TON_KILOGRAM_THRESHOLD) {
+      return `${(kg / OPERATIONAL_CONFIG.MULTIPLIERS.METRIC_TON_KILOGRAM_THRESHOLD).toFixed(2)}t CO₂e`;
+    }
+    return `${kg.toFixed(0)}kg CO₂e`;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      console.error(`Formatting TypeError inside formatCarbon: ${error.message}`);
+    } else {
+      console.error(`Formatting error inside formatCarbon:`, error);
+    }
+    return '0kg CO₂e';
   }
-  return `${kg.toFixed(0)}kg CO₂e`;
 }
 
 /**
@@ -71,5 +149,14 @@ export function formatCarbon(kg: number): string {
  * @returns Localized dollar layout.
  */
 export function formatUSD(usd: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usd);
+  try {
+    if (typeof usd !== 'number' || isNaN(usd)) {
+      throw new TypeError('usd value must be a valid number');
+    }
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usd);
+  } catch (error) {
+    console.error(`Formatting error inside formatUSD:`, error);
+    return '$0.00';
+  }
 }
+

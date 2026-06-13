@@ -68,21 +68,44 @@ const safeStorage = {
   getItem: (key: string): string | null => {
     try {
       return localStorage.getItem(key);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        console.warn(`Local storage security block during getItem for key '${key}'. Reverting to secure mock memory.`);
+      } else if (err instanceof Error) {
+        console.warn(`Error reading key '${key}' from storage: ${err.message}`);
+      } else {
+        console.warn(`Unknown storage getItem exception for key '${key}'`);
+      }
       return inMemoryStore[key] || null;
     }
   },
   setItem: (key: string, value: string): void => {
     try {
       localStorage.setItem(key, value);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        console.warn(`Local storage security block during setItem for key '${key}'. Reverting to secure mock memory.`);
+      } else if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+        console.error("Local storage quota exceeded inside safeStorage engine.");
+      } else if (err instanceof Error) {
+        console.warn(`Error saving key '${key}' to storage: ${err.message}`);
+      } else {
+        console.warn(`Unknown storage setItem exception for key '${key}'`);
+      }
       inMemoryStore[key] = value;
     }
   },
   removeItem: (key: string): void => {
     try {
       localStorage.removeItem(key);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        console.warn(`Local storage security block during removeItem for key '${key}'. Reverting to secure mock memory.`);
+      } else if (err instanceof Error) {
+        console.warn(`Error removing key '${key}' from storage: ${err.message}`);
+      } else {
+        console.warn(`Unknown storage removeItem exception for key '${key}'`);
+      }
       delete inMemoryStore[key];
     }
   },
@@ -92,7 +115,14 @@ const safeStorage = {
       localStorage.setItem(test, test);
       localStorage.removeItem(test);
       return true;
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        console.log("Local storage is disabled due to iframe sandbox policy or user preferences");
+      } else if (err instanceof Error) {
+        console.log(`Local storage is not active or offline fallback utilized: ${err.message}`);
+      } else {
+        console.log("Unknown local storage availability check anomaly");
+      }
       return false;
     }
   }
@@ -130,8 +160,12 @@ export default function App() {
         if (savedTheme === 'light' || savedTheme === 'dark') {
           return savedTheme;
         }
-      } catch (e) {
-        // Fallback below
+      } catch (err) {
+        if (err instanceof Error) {
+          console.warn(`Could not restore saved theme due to standard error: ${err.message}`);
+        } else {
+          console.warn("Could not restore saved theme due to an unknown storage error.");
+        }
       }
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -148,7 +182,13 @@ export default function App() {
     }
     try {
       safeStorage.setItem('ecoslate_theme', theme);
-    } catch {}
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error(`Theme persistence failed: ${err.message}`);
+      } else {
+        console.error("Theme persistence failed with an unknown error class.");
+      }
+    }
   }, [theme]);
 
   const toggleTheme = () => {
@@ -176,7 +216,13 @@ export default function App() {
       const storedDiscourse = safeStorage.getItem('ecoslate_discourse');
       setWisdomDiscourse(storedDiscourse ? JSON.parse(storedDiscourse) : COMMUNITY_DISCOURSE);
     } catch (e) {
-      console.error('Failed to parse storage elements', e);
+      if (e instanceof SyntaxError) {
+        console.error('JSON syntax parsing failure when retrieving local storage logs:', e.message);
+      } else if (e instanceof Error) {
+        console.error('Failed to parse storage elements:', e.message);
+      } else {
+        console.error('An unknown error class blocked storage initialization:', e);
+      }
       // Fallback
       setActivityLogs(INITIAL_ACTIVITIES);
       setOffsetLogs(INITIAL_OFFSETS);
@@ -190,7 +236,13 @@ export default function App() {
     if (activityLogs.length > 0) {
       try {
         safeStorage.setItem('ecoslate_activities', JSON.stringify(activityLogs));
-      } catch {}
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error(`Activities log store synced failure: ${err.message}`);
+        } else {
+          console.error("Activities log store synced failure with unknown error type.");
+        }
+      }
     }
   }, [activityLogs]);
 
@@ -198,7 +250,13 @@ export default function App() {
     if (offsetLogs.length > 0) {
       try {
         safeStorage.setItem('ecoslate_offsets', JSON.stringify(offsetLogs));
-      } catch {}
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error(`Offsets log store synced failure: ${err.message}`);
+        } else {
+          console.error("Offsets log store synced failure with unknown error type.");
+        }
+      }
     }
   }, [offsetLogs]);
 
@@ -206,7 +264,13 @@ export default function App() {
     if (appliances.length > 0) {
       try {
         safeStorage.setItem('ecoslate_appliances', JSON.stringify(appliances));
-      } catch {}
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error(`Appliances config store synced failure: ${err.message}`);
+        } else {
+          console.error("Appliances config store synced failure with unknown error type.");
+        }
+      }
     }
   }, [appliances]);
 
@@ -214,7 +278,13 @@ export default function App() {
     if (wisdomDiscourse.length > 0) {
       try {
         safeStorage.setItem('ecoslate_discourse', JSON.stringify(wisdomDiscourse));
-      } catch {}
+      } catch (err) {
+        if (err instanceof Error) {
+          console.error(`Discourse list store synced failure: ${err.message}`);
+        } else {
+          console.error("Discourse list store synced failure with unknown error type.");
+        }
+      }
     }
   }, [wisdomDiscourse]);
 
@@ -302,6 +372,9 @@ export default function App() {
         <div className="min-h-[500px]">
           {activeDomain === 'journal' && (
             <motion.div
+              id="journal-panel"
+              role="tabpanel"
+              aria-labelledby="nav-tab-journal"
               key="journal-slug"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -320,6 +393,9 @@ export default function App() {
 
           {activeDomain === 'insights' && (
             <motion.div
+              id="insights-panel"
+              role="tabpanel"
+              aria-labelledby="nav-tab-insights"
               key="insights-slug"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -334,6 +410,9 @@ export default function App() {
 
           {activeDomain === 'strategy' && (
             <motion.div
+              id="strategy-panel"
+              role="tabpanel"
+              aria-labelledby="nav-tab-strategy"
               key="strategy-slug"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
