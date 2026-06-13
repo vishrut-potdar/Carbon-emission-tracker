@@ -19,7 +19,8 @@ import {
   Loader2,
   Calendar,
   TrendingDown,
-  Info
+  Info,
+  Target
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -238,6 +239,49 @@ const JournalDomain = ({
   const [dailyBudget, setDailyBudget] = useState<number>(10);
   const [showConfirmClear, setShowConfirmClear] = useState<boolean>(false);
   const [isGuardExpanded, setIsGuardExpanded] = useState<boolean>(false);
+
+  // Monthly Budget Goal Tracker states & calculations
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem('ecoslate_monthly_budget') : null;
+      return stored ? Number(stored) : 500;
+    } catch {
+      return 500;
+    }
+  });
+  const [isMonthlyGoalExpanded, setIsMonthlyGoalExpanded] = useState<boolean>(false);
+
+  const updateMonthlyBudget = (val: number) => {
+    setMonthlyBudget(val);
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('ecoslate_monthly_budget', String(val));
+      }
+    } catch (e) {
+      // Graceful fallback for incognito mode sandbox
+    }
+  };
+
+  const currentYearMonth = new Date().toISOString().slice(0, 7);
+  const currentMonthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  let currentMonthEmissions = 0;
+  activityLogs.forEach(log => {
+    const d = log.date || new Date(log.timestamp).toISOString().split('T')[0];
+    if (d && d.startsWith(currentYearMonth)) {
+      currentMonthEmissions += log.carbonAmount;
+    }
+  });
+
+  let currentMonthOffsets = 0;
+  offsetLogs.forEach(log => {
+    const d = new Date(log.timestamp).toISOString().split('T')[0];
+    if (d && d.startsWith(currentYearMonth)) {
+      currentMonthOffsets += log.offsetAmount;
+    }
+  });
+
+  const netCurrentMonthEmissions = Math.max(0, currentMonthEmissions - currentMonthOffsets);
 
   // Group activity logs by date and calculate sum of carbonAmount for each date
   const dailyTotals: Record<string, number> = {};
@@ -1211,6 +1255,116 @@ const JournalDomain = ({
                     className="w-full bg-paper border border-paper-border rounded px-2.5 py-1 text-[11px] font-mono text-charcoal focus:outline-emerald-deep"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Atmospheric Monthly Goal & Progress Tracker */}
+            <div className="bg-paper-card border border-paper-border rounded-xl p-4 space-y-3.5 transition-all animate-fade-in" id="monthly-goal-tracker">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-serif font-bold text-clay">
+                  <Target className="w-3.5 h-3.5 text-emerald-deep" />
+                  <span>{currentMonthLabel} Carbon Target</span>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setIsMonthlyGoalExpanded(!isMonthlyGoalExpanded)}
+                  className="font-mono text-[10px] text-emerald-deep hover:text-[#b58d4a] transition-all font-bold uppercase tracking-wider"
+                >
+                  {isMonthlyGoalExpanded ? 'Close Config' : 'Set Monthly Goal →'}
+                </button>
+              </div>
+
+              {/* Collapsible Monthly Goal Budget Setting */}
+              {isMonthlyGoalExpanded && (
+                <div className="space-y-4 border-t border-paper-border/30 pt-3 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <p className="font-sans text-[11px] text-earth-muted">
+                      Configure custom monthly emission thresholds. Positive offsets expand your buffer dynamically.
+                    </p>
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0 justify-between">
+                      <span className="text-xs font-mono text-earth-muted">
+                        Goal: <strong className="text-charcoal font-bold">{monthlyBudget} kg CO₂e</strong>
+                      </span>
+                      <input
+                        type="range"
+                        min="100"
+                        max="2000"
+                        step="50"
+                        value={monthlyBudget}
+                        onChange={(e) => updateMonthlyBudget(Number(e.target.value))}
+                        className="w-28 accent-emerald-deep cursor-pointer"
+                        title="Drag to customize monthly budget limit"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Progress Summary Cards */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-paper rounded border border-paper-border/60 p-2 text-center">
+                  <span className="block font-sans text-[8px] text-earth-muted uppercase tracking-wider font-bold">Gross Logs</span>
+                  <span className="font-mono text-[11px] font-bold text-clay leading-none mt-1 block">
+                    {currentMonthEmissions.toFixed(1)} kg
+                  </span>
+                </div>
+                <div className="bg-paper rounded border border-paper-border/60 p-2 text-center">
+                  <span className="block font-sans text-[8px] text-earth-muted uppercase tracking-wider font-bold">Month Offsets</span>
+                  <span className="font-mono text-[11px] font-bold text-emerald-deep leading-none mt-1 block font-semibold">
+                    -{currentMonthOffsets.toFixed(1)} kg
+                  </span>
+                </div>
+                <div className="bg-paper rounded border border-paper-border/60 p-2 text-center">
+                  <span className="block font-sans text-[8px] text-earth-muted uppercase tracking-wider font-bold">Limit Left</span>
+                  <span className={`font-mono text-[11px] font-bold leading-none mt-1 block ${
+                    (monthlyBudget - netCurrentMonthEmissions) < 0 ? 'text-rose-muted animate-pulse font-extrabold' : 'text-charcoal'
+                  }`}>
+                    {(monthlyBudget - netCurrentMonthEmissions).toFixed(1)} kg
+                  </span>
+                </div>
+              </div>
+
+              {/* Monthly Progress Meter */}
+              <div className="space-y-1.5 pt-0.5">
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <span className="text-earth-muted flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      netCurrentMonthEmissions > monthlyBudget ? 'bg-rose-muted animate-ping' :
+                      netCurrentMonthEmissions > monthlyBudget * 0.8 ? 'bg-amber-muted animate-pulse' :
+                      'bg-emerald-deep'
+                    }`} />
+                    Net Month Footprint Progress
+                  </span>
+                  <span className="font-bold text-charcoal">
+                    {netCurrentMonthEmissions.toFixed(1)} / {monthlyBudget} kg ({Math.round((netCurrentMonthEmissions / monthlyBudget) * 100)}%)
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-paper-border/30 rounded-full overflow-hidden relative">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                      netCurrentMonthEmissions > monthlyBudget ? 'bg-rose-muted' :
+                      netCurrentMonthEmissions > monthlyBudget * 0.8 ? 'bg-amber-muted' :
+                      'bg-emerald-deep'
+                    }`}
+                    style={{ width: `${Math.min((netCurrentMonthEmissions / monthlyBudget) * 100, 100)}%` }}
+                  />
+                </div>
+
+                {/* Recommendations and advisory notices */}
+                {netCurrentMonthEmissions > monthlyBudget ? (
+                  <p className="font-sans text-[10px] text-rose-muted italic leading-relaxed pt-0.5">
+                    ⚠️ Month target exceeded! Log restorative actions in offsets to restore equilibrium.
+                  </p>
+                ) : netCurrentMonthEmissions > monthlyBudget * 0.8 ? (
+                  <p className="font-sans text-[10px] text-amber-muted italic leading-relaxed pt-0.5">
+                    💡 Approaching target ceiling. Consider whole-food diet selections or commuter rail lines to maintain a safe buffer.
+                  </p>
+                ) : (
+                  <p className="font-sans text-[10px] text-earth-muted italic leading-relaxed pt-0.5">
+                    🌿 Inside standard atmospheric boundaries. Your combined offset actions preserve local ecological wellness.
+                  </p>
+                )}
               </div>
             </div>
 

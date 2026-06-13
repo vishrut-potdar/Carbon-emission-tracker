@@ -352,7 +352,12 @@ export default function App() {
       <footer className="border-t border-paper-border bg-paper-card py-8 px-6 mt-16 text-center md:text-left transition-all">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-serif text-earth-muted">
           <div>
-            <p className="font-bold text-charcoal text-sm font-serif">Eco Slate</p>
+            <p className="font-bold text-charcoal text-sm font-serif flex items-center gap-2">
+              Eco Slate
+              <span className="font-mono text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 border border-[#b58d4a]/20 text-[#b58d4a] rounded bg-[#b58d4a]/5">
+                DEMO VERSION
+              </span>
+            </p>
             <p className="font-sans text-[11px] mt-1 text-earth-muted">
               Built under high environmental transparency standards. Continuous local persistence enabled.
             </p>

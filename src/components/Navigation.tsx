@@ -37,10 +37,13 @@ const Navigation: React.FC<NavigationProps> = ({
             <Feather className="text-paper w-4.5 h-4.5" />
           </div>
           <div>
-            <h1 className="font-serif text-xl font-bold tracking-tight text-charcoal flex items-center gap-1.5">
+            <h1 className="font-serif text-xl font-bold tracking-tight text-charcoal flex items-center gap-1.5 flex-wrap">
               Eco Slate 
               <span className="font-mono text-[9px] uppercase tracking-widest font-semibold px-1.5 py-0.2 border border-emerald-deep/20 text-emerald-deep rounded bg-emerald-light">
                 No. 01
+              </span>
+              <span className="font-mono text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 border border-[#b58d4a]/20 text-[#b58d4a] rounded bg-[#b58d4a]/5">
+                DEMO
               </span>
             </h1>
             <p className="font-sans text-[10px] text-earth-muted tracking-wide italic">Personal Carbon Ledger</p>
