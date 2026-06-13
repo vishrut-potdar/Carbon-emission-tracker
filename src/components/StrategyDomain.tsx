@@ -1,39 +1,28 @@
-import React, { useState } from 'react';
+import { useState, Dispatch, SetStateAction } from 'react';
 import { motion } from 'motion/react';
 import { 
   TIPS_STRATEGIES, 
-  THE_SHIFT_PROTOCOL, 
-  COMMUNITY_DISCOURSE 
+  THE_SHIFT_PROTOCOL 
 } from '../data/staticData';
 import { 
-  DailyInsightTip, 
-  SwapAlternative, 
   WisdomReflection 
 } from '../types';
 import { 
-  Sparkles, 
-  Check, 
   Zap, 
-  FileText, 
-  MessageSquare, 
-  HelpCircle, 
-  BookOpen, 
-  ArrowRight,
-  User,
+  User, 
   Heart,
   Plus
 } from 'lucide-react';
-import { formatCarbon } from '../utils/carbonCalc';
 
 interface StrategyDomainProps {
   wisdomDiscourse: WisdomReflection[];
-  setWisdomDiscourse: React.Dispatch<React.SetStateAction<WisdomReflection[]>>;
+  setWisdomDiscourse: Dispatch<SetStateAction<WisdomReflection[]>>;
 }
 
-const StrategyDomain: React.FC<StrategyDomainProps> = ({
+const StrategyDomain = ({
   wisdomDiscourse,
   setWisdomDiscourse
-}) => {
+}: StrategyDomainProps) => {
   // Subdomain navigation switch
   const [strategySubTab, setStrategySubTab] = useState<'tips' | 'protocol' | 'discourse'>('tips');
 
@@ -55,7 +44,7 @@ const StrategyDomain: React.FC<StrategyDomainProps> = ({
   const handleSimulate = (swapId: string) => {
     setSimulatingId(swapId);
     // Auto-clear simulation highlight after 2.8 seconds
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       setSimulatingId(null);
     }, 2800);
   };

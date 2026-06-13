@@ -30,6 +30,14 @@ describe('carbonCalc utility functions', () => {
       // using type-cast to bypass TypeScript compile errors for testing fallback branch
       expect(calculateCommuteCarbon(100, 'unknown-type' as any)).toBe(18);
     });
+
+    it('handles zero distance correctly returning zero', () => {
+      expect(calculateCommuteCarbon(0, 'drive-ice')).toBe(0);
+    });
+
+    it('handles negative distance gracefully returning zero', () => {
+      expect(calculateCommuteCarbon(-50, 'drive-ice')).toBe(0);
+    });
   });
 
   describe('calculateDietCarbon', () => {
@@ -47,6 +55,14 @@ describe('carbonCalc utility functions', () => {
       // should fallback to 1.3 factor
       expect(calculateDietCarbon(10, 'unknown-diet' as any)).toBe(13);
     });
+
+    it('handles zero days returning zero', () => {
+      expect(calculateDietCarbon(0, 'vegan')).toBe(0);
+    });
+
+    it('handles negative days gracefully returning zero', () => {
+      expect(calculateDietCarbon(-5, 'vegan')).toBe(0);
+    });
   });
 
   describe('calculateProcurementCarbon', () => {
@@ -63,6 +79,14 @@ describe('carbonCalc utility functions', () => {
     it('falls back gracefully on unknown procurement category', () => {
       // should fallback to 4.5 factor
       expect(calculateProcurementCarbon(10, 'unknown-procurement' as any)).toBe(45);
+    });
+
+    it('handles zero quantity returning zero', () => {
+      expect(calculateProcurementCarbon(0, 'electronics')).toBe(0);
+    });
+
+    it('handles negative quantity gracefully returning zero', () => {
+      expect(calculateProcurementCarbon(-3, 'electronics')).toBe(0);
     });
   });
 
@@ -84,6 +108,10 @@ describe('carbonCalc utility functions', () => {
     it('formats values under 1000 in kilograms with no decimal points', () => {
       expect(formatCarbon(350)).toBe('350kg CO₂e');
       expect(formatCarbon(999.4)).toBe('999kg CO₂e');
+    });
+
+    it('handles negative carbon values gracefully', () => {
+      expect(formatCarbon(-25.5)).toBe('0kg CO₂e');
     });
 
     it('formats values of 1000 and above in metric tons with 2 decimal points', () => {

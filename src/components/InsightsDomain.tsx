@@ -1,41 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { 
   INDUSTRIES_DATA, 
   REGIONAL_INTENSITIES, 
   TWELVE_MONTHS_TREND 
 } from '../data/staticData';
-import { IndustryCarbon, RegionalGridIntensity } from '../types';
 import { 
   Globe, 
   Compass, 
   Flame, 
   Briefcase, 
   Sprout, 
-  Tv, 
   Cpu, 
   Info,
   Calendar,
-  CheckCircle,
   TrendingDown
 } from 'lucide-react';
-import { formatCarbon } from '../utils/carbonCalc';
 import { 
   ResponsiveContainer, 
-  BarChart, 
   Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  ComposedChart,
-  Line,
-  ReferenceLine,
-  ReferenceArea
+  PieChart, 
+  Pie, 
+  Cell, 
+  ComposedChart, 
+  Line, 
+  ReferenceLine 
 } from 'recharts';
 
 interface InsightsDomainProps {
@@ -1126,7 +1119,7 @@ const InsightsDomain: React.FC<InsightsDomainProps> = ({ activityLogs, offsetLog
                   data={combinedChartData}
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   onMouseMove={(state) => {
-                    if (state && state.activeTooltipIndex !== undefined && state.activeTooltipIndex !== null) {
+                    if (state && typeof state.activeTooltipIndex === 'number') {
                       setActiveBarIndex(state.activeTooltipIndex);
                     } else {
                       setActiveBarIndex(null);

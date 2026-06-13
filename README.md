@@ -4,6 +4,17 @@
 
 ---
 
+## 🚀 Core Features & Problem Statement Alignment
+- **✅ Personal Carbon emissions journal**: Keep clear logs of daily carbon emissions (commute modes, dietary selections, consumer goods transactions) paired alongside verified carbon offsets.
+- **✅ Intelligent AI Voice Log Parsing**: Talk or write natural phrases (e.g. *"Biked 5 km then ate a vegetarian salad"*) to parse into structured, categorized ledger logs automatically using Google **Gemini 3.5 Flash** server-side connections.
+- **✅ Appliance Power Footprint Calculator**: Model exact domestic appliance draws (Watts) based on runtime usage, multiplier configurations, and customizable regional grid values.
+- **✅ Macro Systemic Trend Projections**: Composed statistical multi-axis graphics displaying direct emissions, combined offset volumes, and 3-month predictive linear projections with highlighted anomaly indicators.
+- **✅ Interactive A-B Reduction Simulator**: Make behavioral substitution calculations (e.g. trading combustion vehicles for rapid rail lines) to evaluate real reduction outcomes.
+- **✅ Hardware connection diagnostics panel**: Test simulated network dropping tolerances and incognito sandboxes without failing. Seamlessly falls back to memory arrays if `localStorage` is blocked.
+- **✅ Full offline data independence logs**: Import or export total ledger assets using standard, clean JSON files.
+
+---
+
 ## 🎨 Visual Philosophy & Aesthetic Instinct
 Eco Slate rejects generic high-contrast fluorescent styling in favor of organic physical qualities:
 * **Tactile Paper Surfaces**: Off-white background canvas options with dark charcoal typography, reminiscent of coarse linen paper.

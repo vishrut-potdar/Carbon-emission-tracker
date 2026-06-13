@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, BookOpen, Compass, ShieldAlert, Library, RefreshCw, Feather, Sun, Moon } from 'lucide-react';
+import { BookOpen, Compass, Library, Feather, Sun, Moon } from 'lucide-react';
 
 interface NavigationProps {
   activeDomain: 'journal' | 'insights' | 'strategy';

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Wifi, 
@@ -10,7 +10,6 @@ import {
   X, 
   CheckCircle2, 
   AlertTriangle, 
-  HelpCircle,
   FileText,
   Trash2,
   FileCheck

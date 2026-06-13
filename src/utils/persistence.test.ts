@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Define the custom safe storage wrapper logic for testing
 const makeSafeStorage = (customStorage: Storage | null) => {
@@ -44,7 +44,7 @@ describe('Incognito Storage Sandbox Test Suite', () => {
       removeItem: (key: string) => { delete mockLocalStorage[key]; },
       clear: () => { mockLocalStorage = {}; },
       length: 0,
-      key: (index: number) => null,
+      key: (_index: number) => null,
     } as unknown as Storage;
   });
 

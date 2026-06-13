@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Navigation from './components/Navigation';
 import JournalDomain from './components/JournalDomain';
@@ -7,7 +7,7 @@ import StrategyDomain from './components/StrategyDomain';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
 import { ActivityLog, OffsetLog, ApplianceConfig, WisdomReflection } from './types';
 import { COMMUNITY_DISCOURSE } from './data/staticData';
-import { BookOpen, Compass, ShieldAlert, Sparkles, RefreshCw, Feather, Flame, AlertCircle, WifiOff, CloudLightning } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 
 const INITIAL_ACTIVITIES: ActivityLog[] = [
   {
@@ -106,7 +106,7 @@ export default function App() {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
-  const [isLocalStorageAvailable, setIsLocalStorageAvailable] = useState(() => safeStorage.isAvailable());
+  const [isLocalStorageAvailable] = useState(() => safeStorage.isAvailable());
 
   // Hardware connection event handler
   useEffect(() => {

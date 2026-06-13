@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ActivityLog, 
   OffsetLog, 
@@ -10,18 +11,13 @@ import {
   Trash2, 
   ShieldCheck, 
   Sparkles, 
-  Zap, 
   AlertTriangle, 
   FileText, 
-  Globe, 
-  Heart,
-  Droplet,
   Download,
   Mic,
   MicOff,
   Loader2,
   Calendar,
-  Filter,
   TrendingDown,
   Info
 } from 'lucide-react';
@@ -38,27 +34,26 @@ import {
   calculateDietCarbon, 
   calculateProcurementCarbon, 
   calculateApplianceMonthlyFootprint,
-  formatCarbon,
   formatUSD
 } from '../utils/carbonCalc';
 
 interface JournalDomainProps {
   activityLogs: ActivityLog[];
-  setActivityLogs: React.Dispatch<React.SetStateAction<ActivityLog[]>>;
+  setActivityLogs: Dispatch<SetStateAction<ActivityLog[]>>;
   offsetLogs: OffsetLog[];
-  setOffsetLogs: React.Dispatch<React.SetStateAction<OffsetLog[]>>;
+  setOffsetLogs: Dispatch<SetStateAction<OffsetLog[]>>;
   appliances: ApplianceConfig[];
-  setAppliances: React.Dispatch<React.SetStateAction<ApplianceConfig[]>>;
+  setAppliances: Dispatch<SetStateAction<ApplianceConfig[]>>;
 }
 
-const JournalDomain: React.FC<JournalDomainProps> = ({
+const JournalDomain = ({
   activityLogs,
   setActivityLogs,
   offsetLogs,
   setOffsetLogs,
   appliances,
   setAppliances
-}) => {
+}: JournalDomainProps) => {
   // Navigation inside Domain 1
   const [journalSubTab, setJournalSubTab] = useState<'timeline' | 'offsets' | 'appliances'>('timeline');
 
@@ -1327,41 +1322,53 @@ const JournalDomain: React.FC<JournalDomainProps> = ({
               </div>
             ) : (
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {filteredLogs.map((log) => (
-                  <div 
-                    key={log.id} 
-                    className="bg-paper-card border border-paper-border/80 rounded-xl p-4 flex justify-between items-center hover:shadow-sm transition-all relative overflow-hidden group"
-                  >
-                    {/* Visual left color bar for domain identification */}
-                    <div className={`absolute top-0 left-0 w-1 h-full ${
-                      log.category === 'commute' ? 'bg-[#98b2cd]' : 
-                      log.category === 'diet' ? 'bg-amber-muted' : 'bg-rose-muted'
-                    }`} />
+                <AnimatePresence initial={false}>
+                  {filteredLogs.map((log) => (
+                    <motion.div 
+                      key={log.id} 
+                      layout
+                      initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -15, scale: 0.96 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 380, 
+                        damping: 28,
+                        layout: { duration: 0.25 }
+                      }}
+                      className="bg-paper-card border border-paper-border/80 rounded-xl p-4 flex justify-between items-center hover:shadow-sm transition-all relative overflow-hidden group"
+                    >
+                      {/* Visual left color bar for domain identification */}
+                      <div className={`absolute top-0 left-0 w-1 h-full ${
+                        log.category === 'commute' ? 'bg-[#98b2cd]' : 
+                        log.category === 'diet' ? 'bg-amber-muted' : 'bg-rose-muted'
+                      }`} />
 
-                    <div className="pl-2 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-bold bg-paper text-earth-muted border border-paper-border/60">
-                          {log.category}
-                        </span>
-                        <span className="font-mono text-[9px] text-earth-muted">{log.date}</span>
+                      <div className="pl-2 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-bold bg-paper text-earth-muted border border-paper-border/60">
+                            {log.category}
+                          </span>
+                          <span className="font-mono text-[9px] text-earth-muted">{log.date}</span>
+                        </div>
+                        <p className="font-serif text-sm text-charcoal">{log.description}</p>
                       </div>
-                      <p className="font-serif text-sm text-charcoal">{log.description}</p>
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono text-xs font-bold text-clay text-right">
-                        {log.carbonAmount} kg
-                      </span>
-                      <button
-                        onClick={() => deleteActivity(log.id)}
-                        className="text-earth-muted hover:text-rose-muted transition-colors p-1"
-                        title="Erase log"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-4">
+                        <span className="font-mono text-xs font-bold text-clay text-right">
+                          {log.carbonAmount} kg
+                        </span>
+                        <button
+                          onClick={() => deleteActivity(log.id)}
+                          className="text-earth-muted hover:text-rose-muted transition-colors p-1"
+                          title="Erase log"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
 
